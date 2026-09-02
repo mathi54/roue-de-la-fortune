@@ -1,0 +1,66 @@
+{
+  "_commentaire": "Table de loot de la Roue du Valhalla. item = nom de prefab Valheim exact. amount = nombre fixe ou [min, max]. weight = poids relatif du tier. Le tableau des gains épinglé sur Discord est généré automatiquement depuis ce fichier.",
+  "tiers": [
+    {
+      "id": "commun",
+      "label": "Commun",
+      "emoji": "⚪",
+      "color": "#9aa0a6",
+      "weight": 60,
+      "rewards": [
+        { "item": "Coins", "amount": [10, 30], "label": "Piastres", "emoji": "💰" },
+        { "item": "Ruby", "amount": [1, 2], "label": "Rubis", "emoji": "🔴" },
+        { "item": "Amber", "amount": [2, 4], "label": "Ambre", "emoji": "🟠" },
+        { "item": "AmberPearl", "amount": [1, 2], "label": "Perle d'ambre", "emoji": "🟡" }
+      ]
+    },
+    {
+      "id": "peucommun",
+      "label": "Peu Commun",
+      "emoji": "🟢",
+      "color": "#4caf50",
+      "weight": 25,
+      "rewards": [
+        { "item": "MeadStaminaMinor", "amount": [2, 4], "label": "Hydromel d'endurance", "emoji": "🍯" },
+        { "item": "MeadHealthMinor", "amount": [2, 4], "label": "Hydromel revigorant", "emoji": "🍯" },
+        { "item": "Coins", "amount": [40, 80], "label": "Bourse de piastres", "emoji": "💰" }
+      ]
+    },
+    {
+      "id": "rare",
+      "label": "Rare",
+      "emoji": "🔵",
+      "color": "#3f8cff",
+      "weight": 12,
+      "rewards": [
+        { "item": "SilverNecklace", "amount": 1, "label": "Collier d'argent", "emoji": "💍" },
+        { "item": "Coins", "amount": [100, 200], "label": "Coffre de piastres", "emoji": "⚔️" }
+      ]
+    },
+    {
+      "id": "tresrare",
+      "label": "Très Rare",
+      "emoji": "🟣",
+      "color": "#b36bff",
+      "weight": 3,
+      "rewards": [
+        { "item": "Coins", "amount": [400, 600], "label": "Trésor des anciens", "emoji": "🏆" }
+      ]
+    }
+  ],
+  "monthly": {
+    "top3": {
+      "label": "🏆 Trésor du Jarl",
+      "items": [
+        { "item": "Coins", "amount": 500, "label": "Piastres" },
+        { "item": "Ruby", "amount": 5, "label": "Rubis" }
+      ]
+    },
+    "rank4to5": {
+      "label": "🎖️ Bourse du Viking",
+      "items": [
+        { "item": "Coins", "amount": 150, "label": "Piastres" }
+      ]
+    }
+  }
+}
