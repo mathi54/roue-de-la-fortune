@@ -1,0 +1,33 @@
+{
+  "discord": {
+    "token": "TOKEN_DU_BOT_DISCORD",
+    "announceDelivery": false,
+    "channels": {
+      "public": "ID_DU_SALON_roue-du-valhalla",
+      "admin": "ID_DU_SALON_logs-roue-valhalla",
+      "classement": "ID_DU_SALON_meilleur-votant"
+    }
+  },
+  "topServeurs": {
+    "serverToken": "TOKEN_DE_VOTES_TOP_SERVEURS",
+    "pollIntervalSec": 60
+  },
+  "valheim": {
+    "baseUrl": "http://127.0.0.1:8080",
+    "apiToken": "MEME_VALEUR_QUE_Security.AuthToken_DU_CFG_BEPINEX",
+    "instance": "Valheim Mod"
+  },
+  "rejectUnknownPlayers": true,
+  "aliases": {
+    "pseudo-de-vote": "PersonnageEnJeu"
+  },
+  "queue": {
+    "retryIntervalSec": 60,
+    "maxAgeDays": 30
+  },
+  "monthly": {
+    "enabled": true,
+    "dayOfMonth": 1,
+    "hour": 10
+  }
+}

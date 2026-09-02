@@ -1,0 +1,78 @@
+{
+  "_commentaire": "Table de loot de la Roue du Valhalla — Le Camp du Feu Sacré. item = prefab Valheim exact. amount = nombre fixe ou [min, max]. weight = poids du tier. Le tableau épinglé Discord se régénère au redémarrage du bot. Les élixirs 5/10 min nécessitent EventController v3.6.0+.",
+  "tiers": [
+    {
+      "id": "commun",
+      "label": "Commun",
+      "emoji": "⚪",
+      "color": "#9aa0a6",
+      "weight": 60,
+      "rewards": [
+        { "item": "Coins", "amount": 1, "label": "Piastre", "emoji": "💰" },
+        { "item": "Amber", "amount": 1, "label": "Ambre", "emoji": "🟠" },
+        { "item": "AmberPearl", "amount": 1, "label": "Perle d'ambre", "emoji": "🟡" },
+        { "item": "Ruby", "amount": 1, "label": "Rubis", "emoji": "🔴" },
+        { "item": "Dandelion", "amount": 1, "label": "Pissenlit", "emoji": "🌼" }
+      ]
+    },
+    {
+      "id": "peucommun",
+      "label": "Peu Commun",
+      "emoji": "🟢",
+      "color": "#4caf50",
+      "weight": 25,
+      "rewards": [
+        { "item": "MeadStaminaMinor", "amount": 1, "label": "Hydromel d'endurance", "emoji": "🍯" },
+        { "item": "MeadHealthMinor", "amount": 1, "label": "Hydromel revigorant", "emoji": "🍯" },
+        { "item": "Coins", "amount": 20, "label": "Piastres", "emoji": "💰" }
+      ]
+    },
+    {
+      "id": "rare",
+      "label": "Rare",
+      "emoji": "🔵",
+      "color": "#3f8cff",
+      "weight": 12,
+      "rewards": [
+        { "item": "MeadStaminaMedium", "amount": 1, "label": "Hydromel de bonne endurance", "emoji": "🍯" },
+        { "item": "QueenBee", "amount": 1, "label": "Reine abeille", "emoji": "🐝" },
+        { "item": "MeadHealthMedium", "amount": 1, "label": "Hydromel très revigorant", "emoji": "🍯" },
+        { "item": "Stonerock", "amount": 1, "label": "Rock (pour crafter Rocky)", "emoji": "🪨" },
+        { "item": "SilverNecklace", "amount": 1, "label": "Collier d'argent", "emoji": "💍" },
+        { "item": "Coins", "amount": 50, "label": "Piastres", "emoji": "💰" }
+      ]
+    },
+    {
+      "id": "tresrare",
+      "label": "Ultra Rare",
+      "emoji": "🟣",
+      "color": "#b36bff",
+      "weight": 3,
+      "rewards": [
+        { "item": "MeadEventDrop5", "amount": 1, "label": "Élixir de butin (5 min)", "emoji": "🍀" },
+        { "item": "MeadEventXP5", "amount": 1, "label": "Élixir d'expérience (5 min)", "emoji": "✨" },
+        { "item": "MeadEventDrop10", "amount": 1, "label": "Élixir de butin (10 min)", "emoji": "🍀" },
+        { "item": "MeadEventXP10", "amount": 1, "label": "Élixir d'expérience (10 min)", "emoji": "✨" },
+        { "item": "Coins", "amount": 200, "label": "Piastres", "emoji": "🏆" }
+      ]
+    }
+  ],
+  "monthly": {
+    "top3": {
+      "label": "🏆 Trésor du Jarl",
+      "items": [
+        { "item": "Coins", "amount": 1500, "label": "1500 piastres" },
+        { "item": "MeadEventXP", "amount": 1, "label": "Élixir d'expérience (15 min)" },
+        { "item": "MeadEventDrop", "amount": 1, "label": "Élixir de butin (15 min)" }
+      ]
+    },
+    "rank4to5": {
+      "label": "🎖️ Bourse du Viking",
+      "items": [
+        { "item": "Coins", "amount": 500, "label": "500 piastres" },
+        { "item": "MeadEventXP5", "amount": 1, "label": "Élixir d'expérience (5 min)" },
+        { "item": "MeadEventDrop5", "amount": 1, "label": "Élixir de butin (5 min)" }
+      ]
+    }
+  }
+}
