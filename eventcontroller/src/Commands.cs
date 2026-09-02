@@ -142,7 +142,7 @@ namespace EventController
                 if (string.IsNullOrEmpty(steamId) || !ZNet.instance.IsAdmin(steamId))
                 {
                     EventControllerPlugin.Log.LogWarning(
-                        $"[RPC] Non-admin (peer={senderID}, steam={steamId ?? \"?\"}) a tente : {string.Join(" ", tokens)}");
+                        $"[RPC] Non-admin (peer={senderID}, steam={steamId ?? "?"}) a tente : {string.Join(" ", tokens)}");
                     SendMsgToPeer(senderID, "<color=red>Refuse : tu n'es pas admin.</color>");
                     return;
                 }
