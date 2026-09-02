@@ -1,0 +1,17 @@
+# --- Bot Node.js ---
+node_modules/
+# Secrets et état runtime — ne JAMAIS versionner
+bot/config.json
+bot/state.json
+bot/state.json.tmp
+
+# --- Projets C# (mods BepInEx) ---
+bin/
+obj/
+.vs/
+*.user
+*.suo
+
+# --- Divers ---
+.DS_Store
+*.log
