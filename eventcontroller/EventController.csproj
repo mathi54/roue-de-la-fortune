@@ -1,0 +1,72 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>EventController</AssemblyName>
+    <RootNamespace>EventController</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Version>3.6.1</Version>
+    <DebugType>embedded</DebugType>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <ValheimDir>D:\DLL\Jeux</ValheimDir>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <ValheimManaged>$(ValheimDir)\valheim_Data\Managed</ValheimManaged>
+    <BepInExCore>$(ValheimDir)\BepInEx\core</BepInExCore>
+    <!-- v3.3.0 : chemin COMPLET vers Jotunn.dll (dans le dossier
+         BepInEx\plugins de ton installation cliente, souvent dans un
+         sous-dossier Jotunn\ ou ValheimModding-Jotunn\).
+         Pour le trouver :
+         Get-ChildItem -Path D:\ -Recurse -Depth 8 -Filter "Jotunn.dll" -ErrorAction SilentlyContinue -->
+    <JotunnDll>$(ValheimDir)\BepInEx\plugins\ValheimModding-Jotunn\Jotunn.dll</JotunnDll>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="BepInEx">
+      <HintPath>$(BepInExCore)\BepInEx.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(BepInExCore)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="assembly_valheim">
+      <HintPath>$(ValheimManaged)\assembly_valheim.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="assembly_utils">
+      <HintPath>$(ValheimManaged)\assembly_utils.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(ValheimManaged)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(ValheimManaged)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>$(ValheimManaged)\UnityEngine.PhysicsModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Jotunn">
+      <HintPath>$(JotunnDll)</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="CheckPaths" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(ValheimManaged)\assembly_valheim.dll')"
+           Text="Valheim DLL introuvable. Adapte ValheimDir dans EventController.csproj." />
+    <Error Condition="!Exists('$(BepInExCore)\BepInEx.dll')"
+           Text="BepInEx DLL introuvable. Installe BepInEx dans ton Valheim local." />
+    <Error Condition="!Exists('$(JotunnDll)')"
+           Text="Jotunn.dll introuvable. Renseigne JotunnDll dans EventController.csproj (cherche avec : Get-ChildItem -Path D:\ -Recurse -Depth 8 -Filter Jotunn.dll)." />
+  </Target>
+
+</Project>
