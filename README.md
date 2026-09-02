@@ -11,7 +11,7 @@ et annoncée sur Discord. Un podium mensuel récompense les meilleurs votants.
 |---|---|---|
 | **bot/** (voterewards-bot) | Détecte les votes (API Top-Serveurs), tire la récompense, gère la file d'attente, annonce sur Discord, déclenche la livraison | Node.js 22 + discord.js, instance AMP "NodeJS App Runner" |
 | **valheim-restapi/** (`GiveCommand`) | Endpoint HTTP `POST /give` côté serveur : trouve le joueur connecté, valide le prefab, envoie le RPC de livraison | Mod BepInEx serveur (C#), existant, étendu |
-| **eventcontroller/** v3.6.1 | Côté client : reçoit le RPC `EventController_GiveItem`, insère l'objet dans l'inventaire (repli au sol si plein), message HUD. Fournit aussi les 6 élixirs d'event (XP/Butin en 5, 10 et 15 min) avec cumul | Mod BepInEx client+serveur (C#), existant, étendu |
+| **EventController** v3.6.1 — sources dans le repo [ModEventXp](https://github.com/mathi54/ModEventXp) | Côté client : reçoit le RPC `EventController_GiveItem`, insère l'objet dans l'inventaire (repli au sol si plein), message HUD. Fournit aussi les 6 élixirs d'event (XP/Butin en 5, 10 et 15 min) avec cumul | Mod BepInEx client+serveur (C#), existant, étendu |
 
 ### Ce que fait le système, concrètement
 
@@ -90,8 +90,9 @@ bot/                    Le bot Discord Node.js
 ├── test/run-tests.js   Suite de tests (node:assert, fakes injectés)
 └── rewards.json        Table de loot du Camp du Feu Sacré
 valheim-restapi/        Ajout au mod ValheimRestApi (Commands/GiveCommand.cs + notes)
-eventcontroller/        Sources complètes du mod EventController v3.6.1
 docs/                   Présentation technique, guide utilisateur, mémo
 ```
+
+> ℹ️ Les sources du mod **EventController** vivent dans leur propre dépôt : [mathi54/ModEventXp](https://github.com/mathi54/ModEventXp).
 
 Voir `docs/PRESENTATION_TECHNIQUE.md` pour l'architecture détaillée et `docs/GUIDE_UTILISATEUR.md` pour l'exploitation au quotidien.
