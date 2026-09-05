@@ -1,5 +1,5 @@
 /**
- * Tests de la Roue du Valhalla — logique métier complète avec clients simulés.
+ * Tests de la Roue de la Fortune — logique métier complète avec clients simulés.
  * Lancement : npm test
  */
 import assert from 'node:assert/strict';
@@ -498,7 +498,7 @@ console.log('embeds.js');
 await test('les embeds contiennent les infos clés de la maquette', () => {
   const prize = { tier: rewards.tiers[2], reward: rewards.tiers[2].rewards[0], amount: 1 };
   const e1 = embeds.rewardDelivered('Mathi', prize);
-  assert.ok(e1.title.includes('Mathi') && e1.title.includes('Roue du Valhalla'));
+  assert.ok(e1.title.includes('Mathi') && e1.title.includes('Roue de la Fortune'));
   assert.equal(e1.color, 0x3f8cff); // couleur du tier rare
   const e2 = embeds.rewardQueued('Ketil', prize);
   assert.ok(e2.fields.some((f) => f.value.includes('hors ligne')));

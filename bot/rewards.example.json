@@ -1,5 +1,5 @@
 {
-  "_commentaire": "Table de loot de la Roue du Valhalla. item = nom de prefab Valheim exact. amount = nombre fixe ou [min, max]. weight = poids relatif du tier. Le tableau des gains épinglé sur Discord est généré automatiquement depuis ce fichier.",
+  "_commentaire": "Table de loot de la Roue de la Fortune. item = nom de prefab Valheim exact. amount = nombre fixe ou [min, max]. weight = poids relatif du tier. Le tableau des gains épinglé sur Discord est généré automatiquement depuis ce fichier.",
   "tiers": [
     {
       "id": "commun",

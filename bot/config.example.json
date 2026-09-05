@@ -3,8 +3,8 @@
     "token": "TOKEN_DU_BOT_DISCORD",
     "announceDelivery": false,
     "channels": {
-      "public": "ID_DU_SALON_roue-du-valhalla",
-      "admin": "ID_DU_SALON_logs-roue-valhalla",
+      "public": "ID_DU_SALON_roue-de-la-fortune",
+      "admin": "ID_DU_SALON_logs-roue-fortune",
       "classement": "ID_DU_SALON_meilleur-votant"
     }
   },

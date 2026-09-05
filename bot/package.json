@@ -1,7 +1,7 @@
 {
   "name": "voterewards-bot",
   "version": "1.0.0",
-  "description": "La Roue du Valhalla — récompenses de vote Top-Serveurs pour Le Camp du Feu Sacré (Valheim)",
+  "description": "La Roue de la Fortune — récompenses de vote Top-Serveurs pour Le Camp du Feu Sacré (Valheim)",
   "type": "module",
   "main": "src/index.js",
   "scripts": {

@@ -1,4 +1,4 @@
-# Guide utilisateur — La Roue du Valhalla
+# Guide utilisateur — La Roue de la Fortune
 
 *Pour l'administrateur du Camp du Feu Sacré : tout ce qu'il faut savoir pour faire tourner le système au quotidien, sans toucher au code.*
 
@@ -6,7 +6,7 @@
 
 Dans le salon des votes, deux types de messages, tous envoyés par le bot **Le Camp du Feu Sacré** :
 
-- **Un joueur du serveur vote** → embed "🎁 *Pseudo* a fait tourner la Roue du Valhalla !" avec la récompense gagnée. L'objet arrive dans son inventaire s'il est en jeu (dans la minute), sinon à sa prochaine connexion.
+- **Un joueur du serveur vote** → embed "🎁 *Pseudo* a fait tourner la Roue de la Fortune !" avec la récompense gagnée. L'objet arrive dans son inventaire s'il est en jeu (dans la minute), sinon à sa prochaine connexion.
 - **Quelqu'un d'extérieur vote** → simple ligne "*Pseudo* vient de voter pour le serveur !". Rien d'autre.
 
 Le **tableau des gains** est épinglé en haut du salon et se met à jour tout seul à chaque redémarrage du bot.
@@ -23,7 +23,7 @@ Le **1er du mois à 10 h**, le podium des meilleurs votants du mois écoulé est
 
 ## 3. Où sont les fichiers
 
-Instance AMP **"Valheim Roue du Valhalla"** → File Manager → `node-server/app/` :
+Instance AMP **"Valheim Roue de la Fortune"** → File Manager → `node-server/app/` :
 
 | Fichier | À quoi il sert | Tu y touches ? |
 |---|---|---|

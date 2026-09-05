@@ -1,5 +1,5 @@
 /**
- * La Roue du Valhalla — point d'entrée.
+ * La Roue de la Fortune — point d'entrée.
  * Connexion Discord, boucles de polling (votes, file d'attente, podium mensuel),
  * mise à jour du tableau des gains épinglé.
  */
@@ -103,7 +103,7 @@ function loop(fn, intervalSec, label) {
 }
 
 client.once('clientReady', async () => {
-  log(`Connecté en tant que ${client.user.tag} — La Roue du Valhalla est en place ⚔️`);
+  log(`Connecté en tant que ${client.user.tag} — La Roue de la Fortune est en place ⚔️`);
   await upsertRewardsTable();
   loop(() => processVotes(ctx), config.topServeurs.pollIntervalSec ?? 60, 'processVotes');
   loop(() => deliverQueue(ctx), config.queue?.retryIntervalSec ?? 60, 'deliverQueue');

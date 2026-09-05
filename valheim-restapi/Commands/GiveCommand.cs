@@ -6,9 +6,9 @@ namespace ValheimRestApi.Commands
 {
     /// <summary>
     /// POST /give — Donne un objet a un joueur connecte (recompenses de vote,
-    /// bot "Roue du Valhalla"). Body JSON attendu :
+    /// bot "Roue de la Fortune"). Body JSON attendu :
     ///     { "playername": "Mathi", "item": "Coins", "amount": 20,
-    ///       "message": "Roue du Valhalla : 20 Piastres !",   // optionnel (HUD client)
+    ///       "message": "Roue de la Fortune : 20 Piastres !",   // optionnel (HUD client)
     ///       "mode": "rpc" }                                   // optionnel : "rpc" (defaut) ou "drop"
     ///
     /// Mode "rpc" (defaut) : envoie le RPC "EventController_GiveItem" au client

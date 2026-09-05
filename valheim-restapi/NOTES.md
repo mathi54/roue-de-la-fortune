@@ -1,4 +1,4 @@
-# ValheimRestApi — ajout GiveCommand (Roue du Valhalla)
+# ValheimRestApi — ajout GiveCommand (Roue de la Fortune)
 
 Ce dossier ne contient QUE l'ajout à intégrer dans le dépôt ValheimRestApi existant :
 

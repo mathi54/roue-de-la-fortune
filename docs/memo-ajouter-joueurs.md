@@ -1,11 +1,11 @@
-# 📝 Mémo — Ajouter des joueurs à la Roue du Valhalla
+# 📝 Mémo — Ajouter des joueurs à la Roue de la Fortune
 
 *(à faire uniquement pour un joueur qui veut voter AVANT sa première connexion au serveur —
 tout joueur qui se connecte une fois est ajouté automatiquement et pour toujours)*
 
 ## Procédure
 
-1. **AMP → instance du bot (Valheim Roue du Valhalla) → STOP**
+1. **AMP → instance du bot (Valheim Roue de la Fortune) → STOP**
    ⚠️ Toujours arrêter le bot avant de modifier le fichier, sinon il écrase les changements.
 
 2. **File Manager → ouvrir `node-server/app/state.json`**

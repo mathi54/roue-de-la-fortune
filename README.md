@@ -1,4 +1,4 @@
-# ⚔️ La Roue du Valhalla — Récompenses de vote Top-Serveurs
+# ⚔️ La Roue de la Fortune — Récompenses de vote Top-Serveurs
 
 Système de récompenses de vote pour le serveur Valheim **Le Camp du Feu Sacré**.
 Chaque vote sur Top-Serveurs par un joueur du serveur fait "tourner la roue" : une récompense
@@ -18,7 +18,7 @@ et annoncée sur Discord. Un podium mensuel récompense les meilleurs votants.
 1. Toutes les 60 s, le bot lit `GET /v1/votes/last` (votes de l'heure) et **réclame** chaque nouveau vote via `claim-username` (anti-doublon garanti par Top-Serveurs).
 2. Alias éventuel (`config.aliases`) : "pseudo de vote" → "personnage en jeu" (ex. Ketil → Andromaque).
 3. Si le personnage n'a jamais été vu en jeu → simple ligne Discord "X vient de voter pour le serveur !" (comme le webhook Top-Serveurs), rien d'autre.
-4. Si c'est un joueur du serveur → tirage dans `rewards.json` → embed "🎁 X a fait tourner la Roue du Valhalla !".
+4. Si c'est un joueur du serveur → tirage dans `rewards.json` → embed "🎁 X a fait tourner la Roue de la Fortune !".
 5. Joueur en ligne depuis > 1 cycle → `POST /give` → RPC → objet dans l'inventaire + message doré en jeu. Sinon la récompense attend en file (30 jours max) et part à sa prochaine connexion.
 6. Le 1er du mois : classement `players-ranking?type=lastMonth` → lots aux 3 premiers et aux 4e-5e, podium annoncé.
 
@@ -65,7 +65,7 @@ AuthToken = <chaine-secrete>
   "monthly": { "enabled": true, "dayOfMonth": 1, "hour": 10 }
 }
 ```
-- **Update** (installe Node + dépendances) puis **Start**. Console attendue : `Connecté en tant que … — La Roue du Valhalla est en place ⚔️`.
+- **Update** (installe Node + dépendances) puis **Start**. Console attendue : `Connecté en tant que … — La Roue de la Fortune est en place ⚔️`.
 - Tests : `npm test` (36 tests, clients simulés).
 
 ### Vérifications rapides (SSH sur le serveur, personnage connecté)

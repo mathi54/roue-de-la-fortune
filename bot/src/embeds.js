@@ -30,7 +30,7 @@ function tierTag(tier) {
 export function rewardWon(playername, prize) {
   return {
     color: tierColor(prize.tier),
-    title: `🎁 ${playername} a fait tourner la Roue du Valhalla !`,
+    title: `🎁 ${playername} a fait tourner la Roue de la Fortune !`,
     fields: [{ name: 'Récompense', value: `${tierTag(prize.tier)} : ${prizeLabel(prize)}` }],
     footer: { text: `${FOOTER} · Merci pour ton vote !` },
   };
@@ -40,7 +40,7 @@ export function rewardWon(playername, prize) {
 export function rewardDelivered(playername, prize) {
   return {
     color: tierColor(prize.tier),
-    title: `🎁 ${playername} a fait tourner la Roue du Valhalla !`,
+    title: `🎁 ${playername} a fait tourner la Roue de la Fortune !`,
     fields: [{ name: 'Récompense', value: `${tierTag(prize.tier)} : ${prizeLabel(prize)}` }],
     footer: { text: `${FOOTER} · Livrée en jeu à l’instant · Merci pour ton vote !` },
   };
@@ -50,7 +50,7 @@ export function rewardDelivered(playername, prize) {
 export function rewardQueued(playername, prize) {
   return {
     color: tierColor(prize.tier),
-    title: `🎁 ${playername} a fait tourner la Roue du Valhalla !`,
+    title: `🎁 ${playername} a fait tourner la Roue de la Fortune !`,
     fields: [
       { name: 'Récompense', value: `${tierTag(prize.tier)} : ${prizeLabel(prize)}` },
       { name: 'Livraison', value: `⏳ ${playername} est hors ligne — sa récompense l’attend à sa prochaine connexion.` },
@@ -105,7 +105,7 @@ export function rewardsTable(rewards) {
   const totalWeight = rewards.tiers.reduce((s, t) => s + t.weight, 0);
   return {
     color: COLOR_GOLD,
-    title: '⚔️ La Roue du Valhalla — Tableau des gains',
+    title: '⚔️ La Roue de la Fortune — Tableau des gains',
     description:
       'Vote pour le serveur sur Top-Serveurs avec ton **pseudo exact en jeu** et fais tourner la roue ! Un vote possible toutes les 1h30.',
     fields: rewards.tiers.map((t) => ({

@@ -1,5 +1,5 @@
 /**
- * Logique métier de la Roue du Valhalla — indépendante de Discord (testable à 100 %).
+ * Logique métier de la Roue de la Fortune — indépendante de Discord (testable à 100 %).
  * Le contexte (ctx) injecte : ts (TopServeursClient), valheim (ValheimClient),
  * store (Store), rewards, config, notify (annonces), log, rng, now.
  */
@@ -120,7 +120,7 @@ async function deliverOrQueue(ctx, name, prize, vote) {
 async function safeGive(ctx, name, prize) {
   try {
     return await ctx.valheim.give(name, prize.reward.item, prize.amount,
-      `Roue du Valhalla : ${prizeLabel(prize)} !`);
+      `Roue de la Fortune : ${prizeLabel(prize)} !`);
   } catch {
     return false;
   }
@@ -155,7 +155,7 @@ export async function deliverQueue(ctx) {
       ok = await ctx.valheim.give(entry.playername, entry.item, entry.amount,
         entry.kind === 'monthly'
           ? `Podium des votants : ${entry.prizeText} !`
-          : `Roue du Valhalla : ${entry.prizeText} !`);
+          : `Roue de la Fortune : ${entry.prizeText} !`);
     } catch { /* ok reste false */ }
 
     if (ok) {

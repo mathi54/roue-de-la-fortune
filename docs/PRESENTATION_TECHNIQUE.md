@@ -1,4 +1,4 @@
-# Présentation technique — La Roue du Valhalla
+# Présentation technique — La Roue de la Fortune
 
 *Public : développeur / administrateur technique. Pour l'exploitation quotidienne, voir GUIDE_UTILISATEUR.md.*
 

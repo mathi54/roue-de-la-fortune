@@ -1,5 +1,5 @@
 /**
- * Tirage de la Roue du Valhalla — table de loot pondérée par rareté (rewards.json).
+ * Tirage de la Roue de la Fortune — table de loot pondérée par rareté (rewards.json).
  */
 
 /**

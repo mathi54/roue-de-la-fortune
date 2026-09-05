@@ -1,5 +1,5 @@
 {
-  "_commentaire": "Table de loot de la Roue du Valhalla — Le Camp du Feu Sacré. item = prefab Valheim exact. amount = nombre fixe ou [min, max]. weight = poids du tier. Le tableau épinglé Discord se régénère au redémarrage du bot. Les élixirs 5/10 min nécessitent EventController v3.6.0+.",
+  "_commentaire": "Table de loot de la Roue de la Fortune — Le Camp du Feu Sacré. item = prefab Valheim exact. amount = nombre fixe ou [min, max]. weight = poids du tier. Le tableau épinglé Discord se régénère au redémarrage du bot. Les élixirs 5/10 min nécessitent EventController v3.6.0+.",
   "tiers": [
     {
       "id": "commun",
