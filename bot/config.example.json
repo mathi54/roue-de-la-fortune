@@ -29,5 +29,9 @@
     "enabled": true,
     "dayOfMonth": 1,
     "hour": 10
+  },
+  "admin": {
+    "port": 52859,
+    "token": "TOKEN_SECRET_API_ADMIN_LOCALE"
   }
 }

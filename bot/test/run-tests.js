@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { drawReward, drawAmount, prizeLabel, monthlyPrizeForRank } from '../src/rewards.js';
 import { voteName, voteKey, TopServeursClient } from '../src/topserveurs.js';
 import { Store } from '../src/store.js';
-import { processVotes, deliverQueue, runMonthlyIfDue } from '../src/core.js';
+import { processVotes, deliverQueue, runMonthlyIfDue, fakeVote } from '../src/core.js';
 import * as embeds from '../src/embeds.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -509,6 +509,43 @@ await test('les embeds contiennent les infos clés de la maquette', () => {
     { playername: 'Mathi', votes: 42, prizeText: '🏆 Trésor du Jarl' },
   ]);
   assert.ok(podium.description.includes('🥇') && podium.description.includes('Mathi'));
+});
+
+// ---------- faux vote (test admin) ----------
+console.log('fakeVote');
+await test('fakeVote : joueur en ligne → give + annonce "delivered", AUCUN appel Top-Serveurs', async () => {
+  const ctx = makeCtx({ valheim: fakeValheim({ online: ['Mathi'] }) });
+  const r = await fakeVote(ctx, 'Mathi');
+  assert.equal(r.outcome, 'delivered');
+  assert.equal(r.target, 'Mathi');
+  assert.ok(r.prize);
+  assert.equal(ctx.ts.claimCalls.length, 0);
+  assert.equal(ctx.valheim.gives.length, 1);
+  assert.equal(ctx.notify.calls.public[0].kind, 'delivered');
+});
+
+await test('fakeVote : joueur hors ligne → file marquée test:true + annonce "queued"', async () => {
+  const ctx = makeCtx({ valheim: fakeValheim({ online: [] }) });
+  const r = await fakeVote(ctx, 'Ketil');
+  assert.equal(r.outcome, 'queued');
+  assert.equal(ctx.store.queue.length, 1);
+  assert.equal(ctx.store.queue[0].test, true);
+  assert.equal(ctx.store.queue[0].kind, 'vote');
+  assert.equal(ctx.notify.calls.public[0].kind, 'queued');
+});
+
+await test('fakeVote : alias résolu + inconnu → "voteOnly" ; pseudo vide → erreur', async () => {
+  const ctx = makeCtx({ config: { aliases: { ketil: 'Andromaque' }, rejectUnknownPlayers: true },
+                        valheim: fakeValheim({ online: ['Andromaque'] }) });
+  ctx.store.learnPlayers(['Andromaque']);
+  ctx._prevOnline = new Set(['andromaque']);
+  const r1 = await fakeVote(ctx, 'Ketil');
+  assert.equal(r1.target, 'Andromaque');
+  assert.equal(r1.outcome, 'delivered');
+  const r2 = await fakeVote(ctx, 'Inconnu');
+  assert.equal(r2.outcome, 'voteOnly');
+  assert.equal(ctx.valheim.gives.length, 1);
+  await assert.rejects(() => fakeVote(ctx, '   '), /playername manquant/);
 });
 
 // ---------- bilan ----------

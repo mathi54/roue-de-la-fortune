@@ -4,13 +4,15 @@
  * mise à jour du tableau des gains épinglé.
  */
 import { Client, GatewayIntentBits } from 'discord.js';
+import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 import { loadConfig } from './config.js';
 import { TopServeursClient } from './topserveurs.js';
 import { ValheimClient } from './valheim.js';
 import { Store } from './store.js';
-import { processVotes, deliverQueue, runMonthlyIfDue } from './core.js';
+import { processVotes, deliverQueue, runMonthlyIfDue, fakeVote } from './core.js';
 import * as embeds from './embeds.js';
+import { prizeLabel } from './rewards.js';
 
 const { config, rewards, root } = loadConfig();
 
@@ -79,6 +81,43 @@ const notify = {
 
 const ctx = { ts, valheim, store, rewards, config, notify, log, rng: Math.random };
 
+/**
+ * Mini API d'administration locale (config.admin) — réservée à 127.0.0.1, jamais exposée.
+ *   POST /fakevote  body {"playername":"kris"}  header X-Auth-Token: <config.admin.token>
+ * Simule un vote sans passer par Top-Serveurs (tirage, embed, give/file identiques).
+ * Désactivée si config.admin.token est absent.
+ */
+function startAdminApi() {
+  const cfg = config.admin;
+  if (!cfg?.token) { log('API admin désactivée (config.admin.token absent).'); return; }
+  const port = cfg.port ?? 52859;
+
+  const server = createServer(async (req, res) => {
+    const reply = (status, body) => {
+      res.writeHead(status, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(body));
+    };
+    if (req.headers['x-auth-token'] !== cfg.token) return reply(401, { success: false, error: 'token invalide' });
+    if (req.method !== 'POST' || req.url !== '/fakevote') return reply(404, { success: false, error: 'route inconnue' });
+
+    let raw = '';
+    for await (const chunk of req) { raw += chunk; if (raw.length > 4096) return reply(413, { success: false, error: 'corps trop long' }); }
+    let body;
+    try { body = JSON.parse(raw || '{}'); } catch { return reply(400, { success: false, error: 'JSON invalide' }); }
+
+    try {
+      const result = await fakeVote(ctx, body.playername);
+      reply(200, { success: true, outcome: result.outcome, target: result.target,
+                   prize: result.prize ? prizeLabel(result.prize) : null });
+    } catch (err) {
+      reply(400, { success: false, error: err.message });
+    }
+  });
+
+  server.on('error', (err) => log(`API admin : ${err.message}`));
+  server.listen(port, '127.0.0.1', () => log(`API admin à l'écoute sur http://127.0.0.1:${port} (POST /fakevote)`));
+}
+
 /** Publie ou met à jour le message épinglé "Tableau des gains". */
 async function upsertRewardsTable() {
   try {
@@ -105,6 +144,7 @@ function loop(fn, intervalSec, label) {
 client.once('clientReady', async () => {
   log(`Connecté en tant que ${client.user.tag} — La Roue de la Fortune est en place ⚔️`);
   await upsertRewardsTable();
+  startAdminApi();
   loop(() => processVotes(ctx), config.topServeurs.pollIntervalSec ?? 60, 'processVotes');
   loop(() => deliverQueue(ctx), config.queue?.retryIntervalSec ?? 60, 'deliverQueue');
   loop(() => runMonthlyIfDue(ctx), 300, 'monthly');

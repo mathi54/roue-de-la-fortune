@@ -88,15 +88,19 @@ Un StatusEffect (SE_EventBuff) par prefab (le TTL est porté par le SE). **Cumul
 ## 6. Sécurité
 
 - ValheimRestApi lié à 127.0.0.1 + token : jamais exposé à Internet.
-- Le bot n'écoute sur aucun port (connexions sortantes uniquement).
+- Le bot n'écoute que sur 127.0.0.1 (API admin, `config.admin`, désactivée sans token) : `POST /fakevote` protégé par `X-Auth-Token`, corps limité à 4 Ko. Sans `config.admin.token`, aucun port n'est ouvert.
 - GiveCommand refuse amount hors 1-1000 et les prefabs inconnus / sans ItemDrop.
 - Anti-doublon vote : claim Top-Serveurs (serveur) + seen (local).
 - Anti-abus podium : monthlyRun marqué avant distribution.
 - AzuAntiCheat : chaque nouvelle DLL EventController doit être whitelistée (hash) — Instant Ban est actif sur le serveur.
 
+### 2.5 Faux vote (API admin, test de bout en bout)
+
+`POST /fakevote {"playername"}` → `core.fakeVote(ctx, name)` → `handleClaimedVote(ctx, name, vote)`, la même fonction que `processVotes` appelle après un `claim-username` réussi : alias → filtre `knownPlayers` → `drawReward` → `deliverOrQueue`. Différences avec un vrai vote : pas d'appel Top-Serveurs (ni `lastVotes` ni `claim`), pas de `markSeen`, le vote porte `test: true` (propagé sur l'entrée de file), logs préfixés `[TEST]`. Réponse : `{ success, outcome: delivered|queued|voteOnly, target, prize }`.
+
 ## 7. Tests
 
-`npm test` — 36 tests sur core.js, store.js, rewards.js, topserveurs.js, valheim.js, embeds.js avec fakes injectés (ctx.ts, ctx.valheim, ctx.notify, ctx.rng, ctx._prevOnline). Couvre : livraison immédiate/différée, claim 0/1/2, erreurs réseau, fenêtre de stabilité, votant extérieur, alias, expiration, podium (jour, doublon), format réel de /players, distribution des poids sur 20 000 tirages.
+`npm test` — 39 tests sur core.js, store.js, rewards.js, topserveurs.js, valheim.js, embeds.js avec fakes injectés (ctx.ts, ctx.valheim, ctx.notify, ctx.rng, ctx._prevOnline). Couvre : livraison immédiate/différée, claim 0/1/2, erreurs réseau, fenêtre de stabilité, votant extérieur, alias, expiration, podium (jour, doublon), format réel de /players, distribution des poids sur 20 000 tirages.
 
 ## 8. Points d'extension
 

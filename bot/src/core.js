@@ -40,27 +40,55 @@ export async function processVotes(ctx) {
       continue;
     }
 
-    // Alias : le pseudo de vote peut différer du personnage en jeu.
-    const target = resolveAlias(ctx, name);
-    if (target !== name) ctx.log(`Alias : vote de « ${name} » → personnage « ${target} ».`);
-
-    // Filtre "joueur du serveur" : le personnage doit avoir été vu au moins une
-    // fois en jeu (liste apprise via /players). Un votant EXTÉRIEUR au serveur
-    // donne droit à une simple ligne "X vient de voter pour le serveur !"
-    // (comme le webhook Top-Serveurs), sans récompense ni tirage — rien d'autre.
-    // Sécurité : tant que le bot n'a vu personne (démarrage à froid), filtre inactif.
-    if (ctx.config.rejectUnknownPlayers !== false &&
-        ctx.store.knownPlayerCount > 0 &&
-        !ctx.store.isKnownPlayer(target)) {
-      ctx.log(`Vote de « ${name} » (extérieur au serveur) : annonce simple, pas de récompense.`);
-      await ctx.notify.public('voteOnly', { playername: name });
-      continue;
-    }
-
     // claimed === 1 : vote réclamé, on fait tourner la roue
-    const prize = drawReward(ctx.rewards, ctx.rng);
-    await deliverOrQueue(ctx, target, prize, vote);
+    await handleClaimedVote(ctx, name, vote);
   }
+}
+
+/**
+ * Traitement d'un vote RÉCLAMÉ (après claim-username) : alias, filtre "joueur du
+ * serveur", tirage et livraison/file. Point d'entrée commun aux vrais votes
+ * (processVotes) et aux faux votes de test (fakeVote).
+ * @returns {Promise<{outcome:'voteOnly'|'delivered'|'queued', target:string, prize?:object}>}
+ */
+export async function handleClaimedVote(ctx, name, vote) {
+  // Alias : le pseudo de vote peut différer du personnage en jeu.
+  const target = resolveAlias(ctx, name);
+  if (target !== name) ctx.log(`Alias : vote de « ${name} » → personnage « ${target} ».`);
+
+  // Filtre "joueur du serveur" : le personnage doit avoir été vu au moins une
+  // fois en jeu (liste apprise via /players). Un votant EXTÉRIEUR au serveur
+  // donne droit à une simple ligne "X vient de voter pour le serveur !"
+  // (comme le webhook Top-Serveurs), sans récompense ni tirage — rien d'autre.
+  // Sécurité : tant que le bot n'a vu personne (démarrage à froid), filtre inactif.
+  if (ctx.config.rejectUnknownPlayers !== false &&
+      ctx.store.knownPlayerCount > 0 &&
+      !ctx.store.isKnownPlayer(target)) {
+    ctx.log(`Vote de « ${name} » (extérieur au serveur) : annonce simple, pas de récompense.`);
+    await ctx.notify.public('voteOnly', { playername: name });
+    return { outcome: 'voteOnly', target };
+  }
+
+  const prize = drawReward(ctx.rewards, ctx.rng);
+  const outcome = await deliverOrQueue(ctx, target, prize, vote);
+  return { outcome, target, prize };
+}
+
+/**
+ * Faux vote de test (admin) : simule qu'un joueur vient de voter, SANS passer
+ * par Top-Serveurs (pas de claim, pas d'impact sur le classement mensuel qui
+ * vient de l'API). Le reste est identique à un vrai vote : alias, filtre,
+ * tirage, embed Discord, give en jeu ou mise en file d'attente.
+ */
+export async function fakeVote(ctx, playername) {
+  const name = typeof playername === 'string' ? playername.trim() : '';
+  if (!name) throw new Error('playername manquant');
+  ctx.log(`[TEST] Faux vote de « ${name} » (déclenché par l'admin).`);
+  const vote = { playername: name, datetime: new Date().toISOString(), test: true };
+  const result = await handleClaimedVote(ctx, name, vote);
+  ctx.log(`[TEST] Résultat : ${result.outcome} pour « ${result.target} »` +
+    (result.prize ? ` — ${prizeLabel(result.prize)}` : ''));
+  return result;
 }
 
 /**
@@ -100,7 +128,7 @@ async function deliverOrQueue(ctx, name, prize, vote) {
     const ok = await safeGive(ctx, name, prize);
     if (ok) {
       await ctx.notify.public('delivered', { playername: name, prize });
-      return;
+      return 'delivered';
     }
     await ctx.notify.admin('deliveryFailed', { playername: name, detail: 'ValheimRestApi a refusé le give' });
   }
@@ -113,8 +141,10 @@ async function deliverOrQueue(ctx, name, prize, vote) {
     tierId: prize.tier.id,
     voteDate: vote?.datetime ?? null,
     kind: 'vote',
+    ...(vote?.test ? { test: true } : {}),
   });
   await ctx.notify.public('queued', { playername: name, prize });
+  return 'queued';
 }
 
 async function safeGive(ctx, name, prize) {

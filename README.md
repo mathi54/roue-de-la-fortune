@@ -62,11 +62,12 @@ AuthToken = <chaine-secrete>
   "rejectUnknownPlayers": true,
   "aliases": { "pseudo-de-vote": "PersonnageEnJeu" },
   "queue": { "retryIntervalSec": 60, "maxAgeDays": 30 },
-  "monthly": { "enabled": true, "dayOfMonth": 1, "hour": 10 }
+  "monthly": { "enabled": true, "dayOfMonth": 1, "hour": 10 },
+  "admin": { "port": 52859, "token": "<secret-local>" }
 }
 ```
 - **Update** (installe Node + dépendances) puis **Start**. Console attendue : `Connecté en tant que … — La Roue de la Fortune est en place ⚔️`.
-- Tests : `npm test` (36 tests, clients simulés).
+- Tests : `npm test` (39 tests, clients simulés).
 
 ### Vérifications rapides (SSH sur le serveur, personnage connecté)
 ```bash
@@ -75,12 +76,19 @@ curl -X POST http://127.0.0.1:52858/give -H "X-Auth-Token: <token>" \
 ```
 → `"success":true,"mode":"rpc"`, les piastres dans l'inventaire, message doré à l'écran.
 
+**Simuler un vote complet** (API admin locale du bot, `config.admin`) — sans passer par Top-Serveurs :
+```bash
+curl -X POST http://127.0.0.1:52859/fakevote -H "X-Auth-Token: <config.admin.token>" \
+     -d '{"playername":"kris"}'
+```
+→ `{"success":true,"outcome":"delivered","target":"Paikan24","prize":"…"}` : alias, tirage, embed Discord et give/file exactement comme un vrai vote. `outcome` = `delivered`, `queued` (joueur hors ligne → livré à sa prochaine connexion) ou `voteOnly` (pseudo inconnu du serveur). Aucun impact sur le classement mensuel (il vient de l'API Top-Serveurs).
+
 ## Structure du dépôt
 
 ```
 bot/                    Le bot Discord Node.js
-├── src/index.js        Point d'entrée : Discord, boucles (votes / file / mensuel), tableau épinglé
-├── src/core.js         Logique métier : processVotes, deliverQueue, runMonthlyIfDue, alias
+├── src/index.js        Point d'entrée : Discord, boucles (votes / file / mensuel), tableau épinglé, API admin locale (/fakevote)
+├── src/core.js         Logique métier : processVotes, handleClaimedVote, fakeVote, deliverQueue, runMonthlyIfDue, alias
 ├── src/topserveurs.js  Client API Top-Serveurs (votes/last, claim-username, players-ranking)
 ├── src/valheim.js      Client ValheimRestApi (/players, /give) + extractPlayerName tolérant
 ├── src/rewards.js      Tirage pondéré, libellés, lots mensuels par rang

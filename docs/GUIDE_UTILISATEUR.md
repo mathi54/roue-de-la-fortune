@@ -90,6 +90,31 @@ Le port et le token sont ceux du `.cfg` de ValheimRestApi de l'instance visée. 
 
 **Start** → à la prochaine connexion du joueur (après ~1-2 min en jeu), l'objet est livré.
 
+## 7 bis. Simuler un vote complet (test de bout en bout)
+
+Pour vérifier toute la chaîne (tirage → embed Discord → give en jeu ou file d'attente) sans attendre un vrai vote, le bot a une petite API d'administration **locale** (jamais accessible depuis l'extérieur). Elle s'active en ajoutant dans `config.json` :
+
+```json
+"admin": { "port": 52859, "token": "un-secret-a-toi" }
+```
+
+puis restart du bot (console : `API admin à l'écoute sur http://127.0.0.1:52859`). Ensuite, en SSH sur le serveur :
+
+```bash
+curl -X POST http://127.0.0.1:52859/fakevote -H "X-Auth-Token: un-secret-a-toi" \
+     -d '{"playername":"kris"}'
+```
+
+Le bot fait **exactement** comme si « kris » venait de voter : alias (→ Paikan24), tirage dans `rewards.json`, embed « a fait tourner la Roue » sur Discord, et livraison si le joueur est en jeu depuis plus d'une minute, sinon mise en file jusqu'à sa prochaine connexion. La réponse dit ce qui s'est passé :
+
+| `outcome` | Signification |
+|---|---|
+| `delivered` | objet livré dans l'inventaire |
+| `queued` | joueur hors ligne (ou fraîchement connecté) : en file, livré plus tard |
+| `voteOnly` | pseudo inconnu du serveur : simple ligne « X vient de voter », pas de récompense |
+
+À savoir : la récompense est **réelle** (c'est le but du test), Top-Serveurs n'est pas contacté (pas de claim), et le classement mensuel n'est pas touché. Dans la console AMP, ces votes sont préfixés `[TEST]` ; dans `state.json`, les entrées de file correspondantes portent `"test": true`.
+
 ## 8. Que faire si…
 
 | Symptôme | Cause probable | Solution |
