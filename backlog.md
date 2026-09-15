@@ -8,7 +8,7 @@ Ce document répertorie et structure de manière déterministe les tâches d'év
 
 - **Phase 1 : Fiabilité & Robustesse Critique** `[4/4]`
 - **Phase 2 : Optimisations C# ValheimRestApi & Sécurité** `[2/2]`
-- **Phase 3 : Ergonomie Joueur & Fonctionnalités Communautaires** `[0/3]`
+- **Phase 3 : Ergonomie Joueur & Fonctionnalités Communautaires** `[1/3]`
 
 ---
 
@@ -84,7 +84,7 @@ Ce document répertorie et structure de manière déterministe les tâches d'év
 
 ## Phase 3 : Ergonomie Joueur & Fonctionnalités Communautaires
 
-* [ ] **Tâche 3.1 : Endpoints d'administration de la file d'attente (Inspection & Force-Deliver)**
+* [x] **Tâche 3.1 : Endpoints d'administration de la file d'attente (Inspection & Force-Deliver)**
   * **Fichiers concernés :** [index.js](file:///d:/Work/roue-de-la-fortune/bot/src/index.js), [core.js](file:///d:/Work/roue-de-la-fortune/bot/src/core.js)
   * **Objectif :** Permettre aux administrateurs de visualiser les récompenses en attente et de forcer une tentative de livraison immédiate via l'API HTTP locale.
   * **Prompt Antigravity :**

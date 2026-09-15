@@ -111,6 +111,19 @@ function startAdminApi() {
       return reply(200, { success: true, count: logs.length, logs });
     }
 
+    if (req.method === 'GET' && req.url === '/queue') {
+      return reply(200, { success: true, count: store.queue.length, queue: store.queue });
+    }
+
+    if (req.method === 'POST' && req.url === '/queue/deliver') {
+      try {
+        await deliverQueue(ctx);
+        return reply(200, { success: true, message: 'Cycle de livraison exécuté', remaining: store.queue.length });
+      } catch (err) {
+        return reply(500, { success: false, error: err.message });
+      }
+    }
+
     if (req.method !== 'POST' || req.url !== '/fakevote') return reply(404, { success: false, error: 'route inconnue' });
 
     let raw = '';
@@ -128,7 +141,7 @@ function startAdminApi() {
   });
 
   adminServer.on('error', (err) => log(`API admin : ${err.message}`));
-  adminServer.listen(port, '127.0.0.1', () => log(`API admin à l'écoute sur http://127.0.0.1:${port} (POST /fakevote, GET /logs)`));
+  adminServer.listen(port, '127.0.0.1', () => log(`API admin à l'écoute sur http://127.0.0.1:${port} (POST /fakevote, GET /logs, GET /queue, POST /queue/deliver)`));
 }
 
 /** Publie ou met à jour le message épinglé "Tableau des gains". */
