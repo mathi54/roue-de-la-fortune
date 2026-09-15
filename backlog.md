@@ -6,7 +6,7 @@ Ce document répertorie et structure de manière déterministe les tâches d'év
 
 ## 📌 Synthèse de l'état d'avancement
 
-- **Phase 1 : Fiabilité & Robustesse Critique** `[3/4]`
+- **Phase 1 : Fiabilité & Robustesse Critique** `[4/4]`
 - **Phase 2 : Optimisations C# ValheimRestApi & Sécurité** `[0/2]`
 - **Phase 3 : Ergonomie Joueur & Fonctionnalités Communautaires** `[0/3]`
 
@@ -45,7 +45,7 @@ Ce document répertorie et structure de manière déterministe les tâches d'év
     > 3. Déconnecte proprement le client Discord via `client.destroy()`.
     > 4. Assure un `process.exit(0)` après libération complète des descripteurs."
 
-* [ ] **Tâche 1.4 : Journalisation persistante avec rotation et diagnostic embarqué**
+* [x] **Tâche 1.4 : Journalisation persistante avec rotation et diagnostic embarqué**
   * **Fichiers concernés :** [logger.js](file:///d:/Work/roue-de-la-fortune/bot/src/logger.js), [index.js](file:///d:/Work/roue-de-la-fortune/bot/src/index.js), [run-tests.js](file:///d:/Work/roue-de-la-fortune/bot/test/run-tests.js)
   * **Objectif :** Respecter la directive de diagnostic embarqué (Règle Studio n°1) en écrivant tous les logs du bot dans un fichier persistant local et en fournissant un accès de consultation via l'API admin locale.
   * **Prompt Antigravity :**

@@ -13,6 +13,7 @@ import { voteName, voteKey, TopServeursClient } from '../src/topserveurs.js';
 import { Store } from '../src/store.js';
 import { processVotes, deliverQueue, runMonthlyIfDue, fakeVote, safeLoop } from '../src/core.js';
 import * as embeds from '../src/embeds.js';
+import { Logger } from '../src/logger.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const rewards = JSON.parse(readFileSync(resolve(here, '../rewards.example.json'), 'utf8'));
@@ -583,6 +584,26 @@ await test('safeLoop : capture les erreurs sans rompre le cycle suivant', async 
   assert.ok(runs >= 2, 'devrait continuer à tourner malgré l\'erreur');
   assert.ok(logs.some((l) => l.includes('erreur simulée')));
   stop();
+});
+
+// ---------- logger.js ----------
+console.log('logger.js');
+await test('Logger : écrit dans le buffer circulaire et dans le fichier persistant', () => {
+  const logFile = join(tmp, 'test.log');
+  const logger = new Logger(logFile, 3);
+  logger.log('Ligne 1', 'INFO');
+  logger.log('Ligne 2', 'WARN');
+  logger.log('Ligne 3', 'ERROR');
+  logger.log('Ligne 4', 'INFO'); // doit évincer Ligne 1 du buffer
+
+  const logs = logger.getLogs();
+  assert.equal(logs.length, 3);
+  assert.ok(logs[0].includes('Ligne 2'));
+  assert.ok(logs[2].includes('Ligne 4'));
+
+  const fileContent = readFileSync(logFile, 'utf8');
+  assert.ok(fileContent.includes('Ligne 1'));
+  assert.ok(fileContent.includes('Ligne 4'));
 });
 
 // ---------- bilan ----------

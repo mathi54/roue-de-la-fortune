@@ -13,10 +13,12 @@ import { Store } from './store.js';
 import { processVotes, deliverQueue, runMonthlyIfDue, fakeVote, safeLoop } from './core.js';
 import * as embeds from './embeds.js';
 import { prizeLabel } from './rewards.js';
+import { Logger } from './logger.js';
 
 const { config, rewards, root } = loadConfig();
 
-const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
+const logger = new Logger(resolve(root, 'logs', 'roue.log'));
+const log = (msg, level = 'INFO') => logger.log(msg, level);
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const ts = new TopServeursClient(config.topServeurs.serverToken);
@@ -100,6 +102,15 @@ function startAdminApi() {
       res.end(JSON.stringify(body));
     };
     if (req.headers['x-auth-token'] !== cfg.token) return reply(401, { success: false, error: 'token invalide' });
+
+    if (req.method === 'GET' && req.url.startsWith('/logs')) {
+      const parsedUrl = new URL(req.url, 'http://127.0.0.1');
+      const limitParam = parseInt(parsedUrl.searchParams.get('limit') || '100', 10);
+      const limit = isNaN(limitParam) ? 100 : limitParam;
+      const logs = logger.getLogs(limit);
+      return reply(200, { success: true, count: logs.length, logs });
+    }
+
     if (req.method !== 'POST' || req.url !== '/fakevote') return reply(404, { success: false, error: 'route inconnue' });
 
     let raw = '';
@@ -117,7 +128,7 @@ function startAdminApi() {
   });
 
   adminServer.on('error', (err) => log(`API admin : ${err.message}`));
-  adminServer.listen(port, '127.0.0.1', () => log(`API admin à l'écoute sur http://127.0.0.1:${port} (POST /fakevote)`));
+  adminServer.listen(port, '127.0.0.1', () => log(`API admin à l'écoute sur http://127.0.0.1:${port} (POST /fakevote, GET /logs)`));
 }
 
 /** Publie ou met à jour le message épinglé "Tableau des gains". */
