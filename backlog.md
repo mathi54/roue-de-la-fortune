@@ -7,7 +7,7 @@ Ce document répertorie et structure de manière déterministe les tâches d'év
 ## 📌 Synthèse de l'état d'avancement
 
 - **Phase 1 : Fiabilité & Robustesse Critique** `[4/4]`
-- **Phase 2 : Optimisations C# ValheimRestApi & Sécurité** `[0/2]`
+- **Phase 2 : Optimisations C# ValheimRestApi & Sécurité** `[1/2]`
 - **Phase 3 : Ergonomie Joueur & Fonctionnalités Communautaires** `[0/3]`
 
 ---
@@ -61,7 +61,7 @@ Ce document répertorie et structure de manière déterministe les tâches d'év
 
 ## Phase 2 : Optimisations C# ValheimRestApi & Sécurité
 
-* [ ] **Tâche 2.1 : Sécurisation du parsing JSON dans GiveCommand.cs**
+* [x] **Tâche 2.1 : Sécurisation du parsing JSON dans GiveCommand.cs**
   * **Fichiers concernés :** [GiveCommand.cs](file:///d:/Work/roue-de-la-fortune/valheim-restapi/Commands/GiveCommand.cs)
   * **Objectif :** Remplacer le découpage artisanal par regex des chaînes JSON par une extraction blindée contre les caractères d'échappement, les guillemets et les retours à la ligne dans le paramètre `message`.
   * **Prompt Antigravity :**

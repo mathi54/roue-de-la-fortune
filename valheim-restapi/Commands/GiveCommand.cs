@@ -171,17 +171,78 @@ namespace ValheimRestApi.Commands
         private static string JsonString(string body, string key)
         {
             if (string.IsNullOrEmpty(body)) return null;
-            var m = Regex.Match(body,
-                "\"" + Regex.Escape(key) + "\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
-            if (!m.Success) return null;
-            return m.Groups[1].Value.Replace("\\\"", "\"").Replace("\\\\", "\\");
+            try
+            {
+                var m = Regex.Match(body,
+                    "\"" + Regex.Escape(key) + "\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"",
+                    RegexOptions.Singleline);
+                if (!m.Success) return null;
+
+                string raw = m.Groups[1].Value;
+                return UnescapeJsonString(raw);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static string UnescapeJsonString(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return s;
+            var sb = new System.Text.StringBuilder(s.Length);
+            for (int i = 0; i < s.Length; i++)
+            {
+                char c = s[i];
+                if (c == '\\' && i + 1 < s.Length)
+                {
+                    char next = s[++i];
+                    switch (next)
+                    {
+                        case '"': sb.Append('"'); break;
+                        case '\\': sb.Append('\\'); break;
+                        case '/': sb.Append('/'); break;
+                        case 'b': sb.Append('\b'); break;
+                        case 'f': sb.Append('\f'); break;
+                        case 'n': sb.Append('\n'); break;
+                        case 'r': sb.Append('\r'); break;
+                        case 't': sb.Append('\t'); break;
+                        case 'u':
+                            if (i + 4 < s.Length && int.TryParse(s.Substring(i + 1, 4), System.Globalization.NumberStyles.HexNumber, null, out int code))
+                            {
+                                sb.Append((char)code);
+                                i += 4;
+                            }
+                            else
+                            {
+                                sb.Append("\\u");
+                            }
+                            break;
+                        default:
+                            sb.Append(next);
+                            break;
+                    }
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+            }
+            return sb.ToString();
         }
 
         private static int JsonInt(string body, string key, int fallback)
         {
             if (string.IsNullOrEmpty(body)) return fallback;
-            var m = Regex.Match(body, "\"" + Regex.Escape(key) + "\"\\s*:\\s*(-?\\d+)");
-            return m.Success && int.TryParse(m.Groups[1].Value, out int v) ? v : fallback;
+            try
+            {
+                var m = Regex.Match(body, "\"" + Regex.Escape(key) + "\"\\s*:\\s*(-?\\d+)");
+                return m.Success && int.TryParse(m.Groups[1].Value, out int v) ? v : fallback;
+            }
+            catch
+            {
+                return fallback;
+            }
         }
 
         private static string Fail(string error)
