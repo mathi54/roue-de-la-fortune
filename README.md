@@ -103,4 +103,4 @@ docs/                   Présentation technique, guide utilisateur, mémo
 
 > ℹ️ Les sources du mod **EventController** vivent dans leur propre dépôt : [mathi54/ModEventXp](https://github.com/mathi54/ModEventXp).
 
-Voir `docs/PRESENTATION_TECHNIQUE.md` pour l'architecture détaillée et `docs/GUIDE_UTILISATEUR.md` pour l'exploitation au quotidien.
+Voir `docs/PRESENTATION_TECHNIQUE.md` pour l'architecture détaillée, `docs/GUIDE_UTILISATEUR.md` pour l'exploitation au quotidien et `docs/RELEASE_NOTES.md` pour l'historique des versions.
