@@ -10,13 +10,15 @@ import { loadConfig } from './config.js';
 import { TopServeursClient } from './topserveurs.js';
 import { ValheimClient } from './valheim.js';
 import { Store } from './store.js';
-import { processVotes, deliverQueue, runMonthlyIfDue, fakeVote } from './core.js';
+import { processVotes, deliverQueue, runMonthlyIfDue, fakeVote, safeLoop, resolveAlias } from './core.js';
 import * as embeds from './embeds.js';
 import { prizeLabel } from './rewards.js';
+import { Logger } from './logger.js';
 
 const { config, rewards, root } = loadConfig();
 
-const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
+const logger = new Logger(resolve(root, 'logs', 'roue.log'));
+const log = (msg, level = 'INFO') => logger.log(msg, level);
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const ts = new TopServeursClient(config.topServeurs.serverToken);
@@ -47,7 +49,12 @@ async function sendText(channelId, content) {
 }
 
 const notify = {
-  async public(kind, { playername, prize }) {
+  async public(kind, payload) {
+    if (kind === 'milestone') {
+      await send(config.discord.channels.public, embeds.milestoneReached(payload.milestone, payload.totalVotes, payload.votersCount));
+      return;
+    }
+    const { playername, prize } = payload || {};
     // Votant extérieur au serveur : simple ligne façon webhook Top-Serveurs.
     if (kind === 'voteOnly') {
       await sendText(config.discord.channels.public, `**${playername}** vient de voter pour le serveur !`);
@@ -87,17 +94,41 @@ const ctx = { ts, valheim, store, rewards, config, notify, log, rng: Math.random
  * Simule un vote sans passer par Top-Serveurs (tirage, embed, give/file identiques).
  * Désactivée si config.admin.token est absent.
  */
+let adminServer = null;
+
 function startAdminApi() {
   const cfg = config.admin;
   if (!cfg?.token) { log('API admin désactivée (config.admin.token absent).'); return; }
   const port = cfg.port ?? 52859;
 
-  const server = createServer(async (req, res) => {
+  adminServer = createServer(async (req, res) => {
     const reply = (status, body) => {
       res.writeHead(status, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(body));
     };
     if (req.headers['x-auth-token'] !== cfg.token) return reply(401, { success: false, error: 'token invalide' });
+
+    if (req.method === 'GET' && req.url.startsWith('/logs')) {
+      const parsedUrl = new URL(req.url, 'http://127.0.0.1');
+      const limitParam = parseInt(parsedUrl.searchParams.get('limit') || '100', 10);
+      const limit = isNaN(limitParam) ? 100 : limitParam;
+      const logs = logger.getLogs(limit);
+      return reply(200, { success: true, count: logs.length, logs });
+    }
+
+    if (req.method === 'GET' && req.url === '/queue') {
+      return reply(200, { success: true, count: store.queue.length, queue: store.queue });
+    }
+
+    if (req.method === 'POST' && req.url === '/queue/deliver') {
+      try {
+        await deliverQueue(ctx);
+        return reply(200, { success: true, message: 'Cycle de livraison exécuté', remaining: store.queue.length });
+      } catch (err) {
+        return reply(500, { success: false, error: err.message });
+      }
+    }
+
     if (req.method !== 'POST' || req.url !== '/fakevote') return reply(404, { success: false, error: 'route inconnue' });
 
     let raw = '';
@@ -114,8 +145,8 @@ function startAdminApi() {
     }
   });
 
-  server.on('error', (err) => log(`API admin : ${err.message}`));
-  server.listen(port, '127.0.0.1', () => log(`API admin à l'écoute sur http://127.0.0.1:${port} (POST /fakevote)`));
+  adminServer.on('error', (err) => log(`API admin : ${err.message}`));
+  adminServer.listen(port, '127.0.0.1', () => log(`API admin à l'écoute sur http://127.0.0.1:${port} (POST /fakevote, GET /logs, GET /queue, POST /queue/deliver)`));
 }
 
 /** Publie ou met à jour le message épinglé "Tableau des gains". */
@@ -135,20 +166,108 @@ async function upsertRewardsTable() {
   }
 }
 
-function loop(fn, intervalSec, label) {
-  const run = () => fn().catch((err) => log(`${label} : ${err.message}`));
-  run();
-  setInterval(run, intervalSec * 1000);
+async function registerSlashCommands() {
+  try {
+    const commands = [
+      {
+        name: 'mes-recompenses',
+        description: 'Affiche tes récompenses de vote en attente de livraison',
+        options: [
+          {
+            name: 'pseudo',
+            description: 'Ton nom de personnage ou de vote si différent',
+            type: 3, // ApplicationCommandOptionType.String
+            required: false,
+          },
+        ],
+      },
+      {
+        name: 'roue-classement',
+        description: 'Affiche le classement des votes du mois en cours',
+      },
+    ];
+    await client.application.commands.set(commands);
+    log('Commandes Slash (/mes-recompenses, /roue-classement) enregistrées avec succès.');
+  } catch (err) {
+    log(`Impossible d'enregistrer les commandes Slash : ${err.message}`);
+  }
 }
+
+const stoppers = [];
 
 client.once('clientReady', async () => {
   log(`Connecté en tant que ${client.user.tag} — La Roue de la Fortune est en place ⚔️`);
   await upsertRewardsTable();
+  await registerSlashCommands();
   startAdminApi();
-  loop(() => processVotes(ctx), config.topServeurs.pollIntervalSec ?? 60, 'processVotes');
-  loop(() => deliverQueue(ctx), config.queue?.retryIntervalSec ?? 60, 'deliverQueue');
-  loop(() => runMonthlyIfDue(ctx), 300, 'monthly');
+  stoppers.push(safeLoop(() => processVotes(ctx), config.topServeurs.pollIntervalSec ?? 60, 'processVotes', log));
+  stoppers.push(safeLoop(() => deliverQueue(ctx), config.queue?.retryIntervalSec ?? 60, 'deliverQueue', log));
+  stoppers.push(safeLoop(() => runMonthlyIfDue(ctx), 300, 'monthly', log));
 });
+
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+
+  if (interaction.commandName === 'mes-recompenses') {
+    try {
+      const input = interaction.options.getString('pseudo');
+      const voterName = input?.trim() || interaction.member?.displayName || interaction.user.username;
+      const target = resolveAlias(ctx, voterName);
+
+      const targetLower = target.toLowerCase();
+      const voterLower = voterName.toLowerCase();
+      const entries = store.queue.filter((e) => {
+        const pLower = e.playername.toLowerCase();
+        return pLower === targetLower || pLower === voterLower;
+      });
+
+      const embed = embeds.myPendingRewards(target, entries);
+      await interaction.reply({ embeds: [embed], ephemeral: true });
+    } catch (err) {
+      log(`Erreur interaction /mes-recompenses : ${err.message}`);
+      await interaction.reply({ content: 'Une erreur est survenue lors de la consultation de tes récompenses.', ephemeral: true }).catch(() => {});
+    }
+  } else if (interaction.commandName === 'roue-classement') {
+    try {
+      await interaction.deferReply();
+      const players = await ts.playersRanking('current');
+      const embed = embeds.currentRankingEmbed(players);
+      await interaction.editReply({ embeds: [embed] });
+    } catch (err) {
+      log(`Erreur interaction /roue-classement : ${err.message}`);
+      if (interaction.deferred) {
+        await interaction.editReply({ content: 'Impossible de récupérer le classement pour le moment.' }).catch(() => {});
+      } else {
+        await interaction.reply({ content: 'Impossible de récupérer le classement pour le moment.', ephemeral: true }).catch(() => {});
+      }
+    }
+  }
+});
+
+let isShuttingDown = false;
+export function gracefulShutdown(signal = 'SIGTERM') {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  log(`Arrêt gracieux suite au signal ${signal}...`);
+
+  for (const stop of stoppers) {
+    try { stop(); } catch { /* ignore */ }
+  }
+
+  if (adminServer) {
+    try { adminServer.close(); } catch { /* ignore */ }
+  }
+
+  try {
+    client.destroy();
+  } catch { /* ignore */ }
+
+  log('Ressources libérées. Arrêt complet.');
+  process.exit(0);
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 client.login(config.discord.token).catch((err) => {
   console.error(`Connexion Discord impossible : ${err.message}`);

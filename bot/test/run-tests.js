@@ -11,8 +11,9 @@ import { fileURLToPath } from 'node:url';
 import { drawReward, drawAmount, prizeLabel, monthlyPrizeForRank } from '../src/rewards.js';
 import { voteName, voteKey, TopServeursClient } from '../src/topserveurs.js';
 import { Store } from '../src/store.js';
-import { processVotes, deliverQueue, runMonthlyIfDue, fakeVote } from '../src/core.js';
+import { processVotes, deliverQueue, runMonthlyIfDue, fakeVote, safeLoop, checkMilestones } from '../src/core.js';
 import * as embeds from '../src/embeds.js';
+import { Logger } from '../src/logger.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const rewards = JSON.parse(readFileSync(resolve(here, '../rewards.example.json'), 'utf8'));
@@ -82,6 +83,7 @@ function makeCtx(overrides = {}) {
     notify: fakeNotify(),
     log: () => {},
     rng: Math.random,
+    sleep: async () => {},
     // Par défaut dans les tests : les joueurs listés sont considérés stables
     // (en ligne depuis plus d'un cycle). Les tests de la fenêtre de stabilité
     // écrasent ce champ.
@@ -231,6 +233,49 @@ await test('Store : takeDeliverable insensible à la casse, expireQueue', () => 
   assert.equal(expired.length, 1);
   assert.equal(expired[0].playername, 'Freyja');
   assert.equal(s.queue.length, 0);
+});
+
+await test('Store : takeDeliverable avec fonction de résolution d\'alias rétroactive', () => {
+  const s = new Store(join(tmp, 'q-alias.json'));
+  s.enqueue({ playername: 'KrisDiscord', item: 'Coins', amount: 20, prizeText: 'x', tierId: 'commun' });
+  s.enqueue({ playername: 'Autre', item: 'Coins', amount: 10, prizeText: 'y', tierId: 'commun' });
+  const aliases = { 'krisdiscord': 'Paikan24' };
+  const resolveAliasFn = (n) => aliases[n.toLowerCase()] ?? n;
+  const d = s.takeDeliverable(['Paikan24'], resolveAliasFn);
+  assert.equal(d.length, 1);
+  assert.equal(d[0].playername, 'Paikan24');
+  assert.equal(s.queue.length, 1);
+  assert.equal(s.queue[0].playername, 'Autre');
+});
+
+await test('Store : traçabilité des tirages (addHistory, getHistory, limitation de taille)', () => {
+  const path = join(tmp, 'history.json');
+  const s = new Store(path);
+  for (let i = 1; i <= 55; i++) {
+    s.addHistory({ voter: `Joueur${i}`, prizeText: `Lot ${i}`, outcome: 'delivered' }, 50);
+  }
+  assert.equal(s.history.length, 50);
+  const recent = s.getHistory(5);
+  assert.equal(recent.length, 5);
+  assert.equal(recent[0].voter, 'Joueur55'); // plus récent d'abord
+  assert.ok(recent[0].id && recent[0].date);
+
+  const reloaded = new Store(path);
+  assert.equal(reloaded.history.length, 50);
+  rmSync(path);
+});
+
+await test('Store : gestion des votants mensuels et des paliers (milestones)', () => {
+  const path = join(tmp, 'milestones.json');
+  const s = new Store(path);
+  s.recordMonthlyVoter('2026-09', 'Mathi');
+  s.recordMonthlyVoter('2026-09', 'Ketil');
+  s.recordMonthlyVoter('2026-09', 'mathi'); // dédup insensible à la casse
+  assert.deepEqual(s.getMonthlyVoters('2026-09'), ['Mathi', 'Ketil']);
+  assert.equal(s.isMilestoneReached('2026-09', 50), false);
+  s.markMilestoneReached('2026-09', 50);
+  assert.equal(s.isMilestoneReached('2026-09', 50), true);
+  rmSync(path);
 });
 
 // ---------- core.js : processVotes ----------
@@ -442,6 +487,25 @@ await test('give différé échoue → remise en file, pas de perte', async () =
   assert.equal(ctx.notify.calls.admin[0].kind, 'deliveryFailed');
 });
 
+await test('deliverQueue : temporisation anti-rafale (sleep) et résolution d\'alias rétroactive', async () => {
+  const sleeps = [];
+  const ctx = makeCtx({
+    valheim: fakeValheim({ online: ['Paikan24'] }),
+    _prevOnline: new Set(['paikan24']),
+    sleep: async (ms) => sleeps.push(ms),
+  });
+  ctx.config.aliases = { 'kris': 'Paikan24' };
+  ctx.store.enqueue({ playername: 'kris', item: 'Coins', amount: 20, prizeText: 'x', tierId: 'commun' });
+  ctx.store.enqueue({ playername: 'Paikan24', item: 'Ruby', amount: 1, prizeText: 'y', tierId: 'rare' });
+
+  await deliverQueue(ctx);
+  assert.equal(ctx.valheim.gives.length, 2);
+  assert.equal(ctx.valheim.gives[0].playername, 'Paikan24');
+  assert.equal(ctx.valheim.gives[1].playername, 'Paikan24');
+  assert.equal(sleeps.length, 2);
+  assert.equal(sleeps[0], 500);
+});
+
 await test('entrée expirée → retirée + log admin "expired"', async () => {
   let clock = 0;
   const store = new Store(join(tmp, 'exp.json'), () => clock);
@@ -478,10 +542,17 @@ await test('le 1er du mois à 10h → distribution top 3 + rangs 4-5, pas le 6e'
   assert.ok(ctx.valheim.gives.some((g) => g.playername === 'Mathi'));
 });
 
-await test('pas le bon jour → rien ne se passe', async () => {
+await test('avant l\'échéance (1er du mois à 9h) → rien ne se passe', async () => {
+  const ctx = makeCtx({ ts: fakeTs({ ranking }) });
+  await runMonthlyIfDue(ctx, new Date(2026, 8, 1, 9, 0));
+  assert.equal(ctx.notify.calls.podium.length, 0);
+});
+
+await test('rattrapage le 15 du mois si pas encore exécuté → distribution effectuée', async () => {
   const ctx = makeCtx({ ts: fakeTs({ ranking }) });
   await runMonthlyIfDue(ctx, new Date(2026, 8, 15, 12, 0));
-  assert.equal(ctx.notify.calls.podium.length, 0);
+  assert.equal(ctx.notify.calls.podium.length, 1);
+  assert.equal(ctx.store.monthlyAlreadyRun('2026-09'), true);
 });
 
 await test('déjà distribué ce mois-ci → aucune double distribution', async () => {
@@ -489,6 +560,7 @@ await test('déjà distribué ce mois-ci → aucune double distribution', async 
   await runMonthlyIfDue(ctx, new Date(2026, 8, 1, 10, 5));
   const queued = ctx.store.queue.length;
   await runMonthlyIfDue(ctx, new Date(2026, 8, 1, 11, 0));
+  await runMonthlyIfDue(ctx, new Date(2026, 8, 15, 12, 0)); // même 14 jours plus tard
   assert.equal(ctx.store.queue.length, queued);
   assert.equal(ctx.notify.calls.podium.length, 1);
 });
@@ -509,6 +581,26 @@ await test('les embeds contiennent les infos clés de la maquette', () => {
     { playername: 'Mathi', votes: 42, prizeText: '🏆 Trésor du Jarl' },
   ]);
   assert.ok(podium.description.includes('🥇') && podium.description.includes('Mathi'));
+
+  const pendingEmpty = embeds.myPendingRewards('Mathi', []);
+  assert.ok(pendingEmpty.description.includes('aucune récompense'));
+
+  const pendingFilled = embeds.myPendingRewards('Mathi', [
+    { prizeText: '💰 20 × Piastres', queuedAt: Date.now() },
+  ]);
+  assert.ok(pendingFilled.description.includes('20 × Piastres'));
+
+  const rankingEmbed = embeds.currentRankingEmbed([
+    { playername: 'Mathi', votes: 15 },
+    { pseudo: 'Ketil', count: 12 },
+  ]);
+  assert.ok(rankingEmbed.description.includes('🥇 **Mathi** — 15 vote(s)'));
+  assert.ok(rankingEmbed.description.includes('🥈 **Ketil** — 12 vote(s)'));
+
+  const mEmbed = embeds.milestoneReached({ votes: 50, reward: { label: '50 Piastres', emoji: '💰' } }, 55, 2);
+  assert.ok(mEmbed.title.includes('55 votes'));
+  assert.ok(mEmbed.description.includes('50 votes'));
+  assert.ok(mEmbed.description.includes('2 vikings'));
 });
 
 // ---------- faux vote (test admin) ----------
@@ -545,7 +637,109 @@ await test('fakeVote : alias résolu + inconnu → "voteOnly" ; pseudo vide → 
   const r2 = await fakeVote(ctx, 'Inconnu');
   assert.equal(r2.outcome, 'voteOnly');
   assert.equal(ctx.valheim.gives.length, 1);
+  assert.equal(ctx.store.history.length, 2);
+  assert.equal(ctx.store.history[0].voter, 'Ketil');
+  assert.equal(ctx.store.history[0].target, 'Andromaque');
+  assert.equal(ctx.store.history[1].outcome, 'voteOnly');
   await assert.rejects(() => fakeVote(ctx, '   '), /playername manquant/);
+});
+
+// ---------- safeLoop ----------
+console.log('safeLoop');
+await test('safeLoop : exécute le premier tick immédiatement et permet un arrêt propre', async () => {
+  let runs = 0;
+  const stop = safeLoop(async () => { runs++; }, 0.05, 'testLoop');
+  assert.equal(runs, 1);
+  await new Promise((r) => setTimeout(r, 70));
+  assert.ok(runs >= 2, `devrait avoir au moins 2 runs, a eu ${runs}`);
+  stop();
+  const runsAtStop = runs;
+  await new Promise((r) => setTimeout(r, 70));
+  assert.equal(runs, runsAtStop, 'ne doit plus s\'exécuter après stop()');
+});
+
+await test('safeLoop : capture les erreurs sans rompre le cycle suivant', async () => {
+  let runs = 0;
+  const logs = [];
+  const stop = safeLoop(async () => {
+    runs++;
+    if (runs === 1) throw new Error('erreur simulée');
+  }, 0.05, 'testErrorLoop', (msg) => logs.push(msg));
+
+  assert.equal(runs, 1);
+  await new Promise((r) => setTimeout(r, 70));
+  assert.ok(runs >= 2, 'devrait continuer à tourner malgré l\'erreur');
+  assert.ok(logs.some((l) => l.includes('erreur simulée')));
+  stop();
+});
+
+// ---------- logger.js ----------
+console.log('logger.js');
+await test('Logger : écrit dans le buffer circulaire et dans le fichier persistant', () => {
+  const logFile = join(tmp, 'test.log');
+  const logger = new Logger(logFile, 3);
+  logger.log('Ligne 1', 'INFO');
+  logger.log('Ligne 2', 'WARN');
+  logger.log('Ligne 3', 'ERROR');
+  logger.log('Ligne 4', 'INFO'); // doit évincer Ligne 1 du buffer
+
+  const logs = logger.getLogs();
+  assert.equal(logs.length, 3);
+  assert.ok(logs[0].includes('Ligne 2'));
+  assert.ok(logs[2].includes('Ligne 4'));
+
+  const fileContent = readFileSync(logFile, 'utf8');
+  assert.ok(fileContent.includes('Ligne 1'));
+  assert.ok(fileContent.includes('Ligne 4'));
+});
+
+// ---------- checkMilestones ----------
+console.log('checkMilestones');
+await test('checkMilestones : déclenche le palier si seuil atteint et distribue à tous les votants', async () => {
+  const ctx = makeCtx({
+    ts: fakeTs({
+      ranking: [
+        { playername: 'Mathi', votes: 30 },
+        { playername: 'Ketil', votes: 25 },
+      ],
+    }),
+    rewards: {
+      ...rewards,
+      milestones: [
+        {
+          votes: 50,
+          label: '50 votes',
+          reward: { item: 'Coins', amount: 50, label: '50 Piastres' },
+        },
+      ],
+    },
+    valheim: fakeValheim({ online: ['Mathi'] }),
+  });
+
+  ctx.store.recordMonthlyVoter('2026-09', 'Mathi');
+  ctx.store.recordMonthlyVoter('2026-09', 'Ketil');
+
+  await checkMilestones(ctx, new Date(2026, 8, 10));
+
+  // Mathi (en ligne) reçoit le give
+  assert.ok(ctx.valheim.gives.some((g) => g.playername === 'Mathi' && g.item === 'Coins' && g.amount === 50));
+  // Ketil (hors ligne) est mis en file
+  assert.ok(ctx.store.queue.some((q) => q.playername === 'Ketil' && q.kind === 'milestone'));
+  // Notification Discord
+  assert.ok(ctx.notify.calls.public.some((c) => c.kind === 'milestone' && c.totalVotes === 55));
+  // Marqué comme franchi
+  assert.equal(ctx.store.isMilestoneReached('2026-09', 50), true);
+
+  // Deuxième appel : ne doit pas ré-enclencher le palier
+  const givesCount = ctx.valheim.gives.length;
+  await checkMilestones(ctx, new Date(2026, 8, 10));
+  assert.equal(ctx.valheim.gives.length, givesCount);
+});
+
+await test('embeds : myPendingRewards contient les instructions de stabilité et inventaire', () => {
+  const embed = embeds.myPendingRewards('Mathi', [{ prizeText: '💰 20 × Piastres', queuedAt: Date.now() }]);
+  assert.ok(embed.description.includes('1 à 2 minutes'));
+  assert.ok(embed.description.includes('inventaire'));
 });
 
 // ---------- bilan ----------

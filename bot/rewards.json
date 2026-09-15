@@ -74,5 +74,17 @@
         { "item": "MeadEventDrop5", "amount": 1, "label": "Élixir de butin (5 min)" }
       ]
     }
-  }
+  },
+  "milestones": [
+    {
+      "votes": 50,
+      "label": "Palier 50 votes atteints",
+      "reward": { "item": "Coins", "amount": 100, "label": "100 Piastres", "emoji": "💰" }
+    },
+    {
+      "votes": 100,
+      "label": "Palier 100 votes atteints",
+      "reward": { "item": "MeadEventXP5", "amount": 1, "label": "Élixir d'expérience (5 min)", "emoji": "✨" }
+    }
+  ]
 }

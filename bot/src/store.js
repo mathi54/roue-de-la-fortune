@@ -12,10 +12,12 @@ export class Store {
   constructor(path, now = () => Date.now()) {
     this.path = path;
     this.now = now;
-    this.data = { seen: {}, queue: [], monthlyRun: null, pinnedMessageId: null, knownPlayers: {} };
+    this.data = { seen: {}, queue: [], monthlyRun: null, pinnedMessageId: null, knownPlayers: {}, history: [], milestones: {} };
     if (existsSync(path)) {
       try {
         this.data = { ...this.data, ...JSON.parse(readFileSync(path, 'utf8')) };
+        if (!Array.isArray(this.data.history)) this.data.history = [];
+        if (!this.data.milestones || typeof this.data.milestones !== 'object') this.data.milestones = {};
       } catch {
         // fichier corrompu : on repart proprement, l'anti-doublon reste garanti par claim-username
       }
@@ -50,13 +52,23 @@ export class Store {
     this.save();
   }
 
-  /** Entrées de la file pour un ensemble de joueurs en ligne (comparaison insensible à la casse). */
-  takeDeliverable(onlineNames) {
-    const online = new Set(onlineNames.map((n) => n.toLowerCase()));
+  /**
+   * Entrées de la file pour un ensemble de joueurs en ligne.
+   * Compare le pseudo brut et le pseudo résolu par alias pour ne jamais bloquer une récompense en file.
+   */
+  takeDeliverable(onlineNames, resolveAliasFn = (n) => n) {
+    const online = new Set(onlineNames.map((n) => n.toLowerCase().trim()));
     const deliverable = [];
     const remaining = [];
     for (const e of this.data.queue) {
-      (online.has(e.playername.toLowerCase()) ? deliverable : remaining).push(e);
+      const raw = (e.playername || '').toLowerCase().trim();
+      const resolved = (resolveAliasFn(e.playername) || '').toLowerCase().trim();
+      if (online.has(raw) || online.has(resolved)) {
+        const effectiveName = online.has(resolved) ? resolveAliasFn(e.playername) : e.playername;
+        deliverable.push({ ...e, playername: effectiveName });
+      } else {
+        remaining.push(e);
+      }
     }
     this.data.queue = remaining;
     if (deliverable.length) this.save();
@@ -109,4 +121,63 @@ export class Store {
   // --- message épinglé ---
   get pinnedMessageId() { return this.data.pinnedMessageId; }
   set pinnedMessageId(id) { this.data.pinnedMessageId = id; this.save(); }
+
+  // --- traçabilité des tirages (audit trail - Règle Studio n°3) ---
+  addHistory(entry, maxEntries = 50) {
+    if (!Array.isArray(this.data.history)) this.data.history = [];
+    const id = `${this.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    this.data.history.push({
+      id,
+      timestamp: this.now(),
+      date: new Date(this.now()).toISOString(),
+      ...entry,
+    });
+    if (this.data.history.length > maxEntries) {
+      this.data.history = this.data.history.slice(-maxEntries);
+    }
+    this.save();
+    return id;
+  }
+
+  getHistory(limit = 50) {
+    const arr = this.data.history || [];
+    return arr.slice(-Math.max(1, limit)).reverse();
+  }
+
+  get history() {
+    return this.data.history || [];
+  }
+
+  // --- paliers collectifs communautaires (milestones) ---
+  recordMonthlyVoter(monthKey, playerName) {
+    if (!this.data.milestones) this.data.milestones = {};
+    if (!this.data.milestones[monthKey]) {
+      this.data.milestones[monthKey] = { voters: [], reached: [] };
+    }
+    const m = this.data.milestones[monthKey];
+    if (!m.voters.some((v) => v.toLowerCase() === playerName.toLowerCase())) {
+      m.voters.push(playerName);
+      this.save();
+    }
+  }
+
+  getMonthlyVoters(monthKey) {
+    return this.data.milestones?.[monthKey]?.voters || [];
+  }
+
+  isMilestoneReached(monthKey, threshold) {
+    return this.data.milestones?.[monthKey]?.reached?.includes(threshold) || false;
+  }
+
+  markMilestoneReached(monthKey, threshold) {
+    if (!this.data.milestones) this.data.milestones = {};
+    if (!this.data.milestones[monthKey]) {
+      this.data.milestones[monthKey] = { voters: [], reached: [] };
+    }
+    const m = this.data.milestones[monthKey];
+    if (!m.reached.includes(threshold)) {
+      m.reached.push(threshold);
+      this.save();
+    }
+  }
 }
