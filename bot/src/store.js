@@ -12,11 +12,12 @@ export class Store {
   constructor(path, now = () => Date.now()) {
     this.path = path;
     this.now = now;
-    this.data = { seen: {}, queue: [], monthlyRun: null, pinnedMessageId: null, knownPlayers: {}, history: [] };
+    this.data = { seen: {}, queue: [], monthlyRun: null, pinnedMessageId: null, knownPlayers: {}, history: [], milestones: {} };
     if (existsSync(path)) {
       try {
         this.data = { ...this.data, ...JSON.parse(readFileSync(path, 'utf8')) };
         if (!Array.isArray(this.data.history)) this.data.history = [];
+        if (!this.data.milestones || typeof this.data.milestones !== 'object') this.data.milestones = {};
       } catch {
         // fichier corrompu : on repart proprement, l'anti-doublon reste garanti par claim-username
       }
@@ -135,5 +136,38 @@ export class Store {
 
   get history() {
     return this.data.history || [];
+  }
+
+  // --- paliers collectifs communautaires (milestones) ---
+  recordMonthlyVoter(monthKey, playerName) {
+    if (!this.data.milestones) this.data.milestones = {};
+    if (!this.data.milestones[monthKey]) {
+      this.data.milestones[monthKey] = { voters: [], reached: [] };
+    }
+    const m = this.data.milestones[monthKey];
+    if (!m.voters.some((v) => v.toLowerCase() === playerName.toLowerCase())) {
+      m.voters.push(playerName);
+      this.save();
+    }
+  }
+
+  getMonthlyVoters(monthKey) {
+    return this.data.milestones?.[monthKey]?.voters || [];
+  }
+
+  isMilestoneReached(monthKey, threshold) {
+    return this.data.milestones?.[monthKey]?.reached?.includes(threshold) || false;
+  }
+
+  markMilestoneReached(monthKey, threshold) {
+    if (!this.data.milestones) this.data.milestones = {};
+    if (!this.data.milestones[monthKey]) {
+      this.data.milestones[monthKey] = { voters: [], reached: [] };
+    }
+    const m = this.data.milestones[monthKey];
+    if (!m.reached.includes(threshold)) {
+      m.reached.push(threshold);
+      this.save();
+    }
   }
 }

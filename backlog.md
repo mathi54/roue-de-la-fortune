@@ -8,7 +8,7 @@ Ce document répertorie et structure de manière déterministe les tâches d'év
 
 - **Phase 1 : Fiabilité & Robustesse Critique** `[4/4]`
 - **Phase 2 : Optimisations C# ValheimRestApi & Sécurité** `[2/2]`
-- **Phase 3 : Ergonomie Joueur & Fonctionnalités Communautaires** `[2/3]`
+- **Phase 3 : Ergonomie Joueur & Fonctionnalités Communautaires** `[3/3]`
 
 ---
 
@@ -102,7 +102,7 @@ Ce document répertorie et structure de manière déterministe les tâches d'év
     > 2. `/mes-recompenses` : recherche dans `store.queue` toutes les entrées correspondant au pseudo (ou alias) du joueur et répond par un message éphémère (visible uniquement par lui) listant ses lots en attente.
     > 3. `/roue-classement` : interroge `ts.playersRanking('current')` et affiche un embed élégant du top 10 des votants du mois en cours."
 
-* [ ] **Tâche 3.3 : Paliers collectifs communautaires (Milestones / Jauge de votes)**
+* [x] **Tâche 3.3 : Paliers collectifs communautaires (Milestones / Jauge de votes)**
   * **Fichiers concernés :** [rewards.json](file:///d:/Work/roue-de-la-fortune/bot/rewards.json), [core.js](file:///d:/Work/roue-de-la-fortune/bot/src/core.js), [embeds.js](file:///d:/Work/roue-de-la-fortune/bot/src/embeds.js), [store.js](file:///d:/Work/roue-de-la-fortune/bot/src/store.js)
   * **Objectif :** Gamifier l'effort collectif du serveur : si le serveur franchit des seuils de votes mensuels (ex: 50, 100, 200 votes), tous les joueurs ayant voté au moins une fois ce mois-ci reçoivent un lot bonus.
   * **Prompt Antigravity :**

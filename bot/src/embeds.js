@@ -170,3 +170,13 @@ export function currentRankingEmbed(players) {
     footer: { text: `${FOOTER} · Le 1er du mois à 10h, le Top 5 remporte le Trésor du Jarl et la Bourse du Viking !` },
   };
 }
+
+/** 🎉 Annonce de palier communautaire franchi. */
+export function milestoneReached(milestone, totalVotes, votersCount) {
+  return {
+    color: COLOR_GOLD,
+    title: `🎉 Palier Communautaire Débloqué ! (${totalVotes} votes)`,
+    description: `Le serveur vient d'atteindre le palier de **${milestone.votes} votes** ce mois-ci !\n\n🎁 **Récompense collective :** ${milestone.reward.emoji ? milestone.reward.emoji + ' ' : ''}${milestone.reward.label}\n\n*Tous les **${votersCount} vikings** ayant voté ce mois-ci reçoivent ce cadeau dans leur file d'attente !*`,
+    footer: { text: `${FOOTER} · Merci pour votre soutien au Camp du Feu Sacré !` },
+  };
+}

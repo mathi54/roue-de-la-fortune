@@ -62,5 +62,12 @@
         { "item": "Coins", "amount": 150, "label": "Piastres" }
       ]
     }
-  }
+  },
+  "milestones": [
+    {
+      "votes": 50,
+      "label": "Palier 50 votes atteints",
+      "reward": { "item": "Coins", "amount": 50, "label": "50 Piastres", "emoji": "💰" }
+    }
+  ]
 }

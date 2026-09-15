@@ -49,7 +49,12 @@ async function sendText(channelId, content) {
 }
 
 const notify = {
-  async public(kind, { playername, prize }) {
+  async public(kind, payload) {
+    if (kind === 'milestone') {
+      await send(config.discord.channels.public, embeds.milestoneReached(payload.milestone, payload.totalVotes, payload.votersCount));
+      return;
+    }
+    const { playername, prize } = payload || {};
     // Votant extérieur au serveur : simple ligne façon webhook Top-Serveurs.
     if (kind === 'voteOnly') {
       await sendText(config.discord.channels.public, `**${playername}** vient de voter pour le serveur !`);

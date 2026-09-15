@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { drawReward, drawAmount, prizeLabel, monthlyPrizeForRank } from '../src/rewards.js';
 import { voteName, voteKey, TopServeursClient } from '../src/topserveurs.js';
 import { Store } from '../src/store.js';
-import { processVotes, deliverQueue, runMonthlyIfDue, fakeVote, safeLoop } from '../src/core.js';
+import { processVotes, deliverQueue, runMonthlyIfDue, fakeVote, safeLoop, checkMilestones } from '../src/core.js';
 import * as embeds from '../src/embeds.js';
 import { Logger } from '../src/logger.js';
 
@@ -248,6 +248,19 @@ await test('Store : traçabilité des tirages (addHistory, getHistory, limitatio
 
   const reloaded = new Store(path);
   assert.equal(reloaded.history.length, 50);
+  rmSync(path);
+});
+
+await test('Store : gestion des votants mensuels et des paliers (milestones)', () => {
+  const path = join(tmp, 'milestones.json');
+  const s = new Store(path);
+  s.recordMonthlyVoter('2026-09', 'Mathi');
+  s.recordMonthlyVoter('2026-09', 'Ketil');
+  s.recordMonthlyVoter('2026-09', 'mathi'); // dédup insensible à la casse
+  assert.deepEqual(s.getMonthlyVoters('2026-09'), ['Mathi', 'Ketil']);
+  assert.equal(s.isMilestoneReached('2026-09', 50), false);
+  s.markMilestoneReached('2026-09', 50);
+  assert.equal(s.isMilestoneReached('2026-09', 50), true);
   rmSync(path);
 });
 
@@ -550,6 +563,11 @@ await test('les embeds contiennent les infos clés de la maquette', () => {
   ]);
   assert.ok(rankingEmbed.description.includes('🥇 **Mathi** — 15 vote(s)'));
   assert.ok(rankingEmbed.description.includes('🥈 **Ketil** — 12 vote(s)'));
+
+  const mEmbed = embeds.milestoneReached({ votes: 50, reward: { label: '50 Piastres', emoji: '💰' } }, 55, 2);
+  assert.ok(mEmbed.title.includes('55 votes'));
+  assert.ok(mEmbed.description.includes('50 votes'));
+  assert.ok(mEmbed.description.includes('2 vikings'));
 });
 
 // ---------- faux vote (test admin) ----------
@@ -640,6 +658,49 @@ await test('Logger : écrit dans le buffer circulaire et dans le fichier persist
   const fileContent = readFileSync(logFile, 'utf8');
   assert.ok(fileContent.includes('Ligne 1'));
   assert.ok(fileContent.includes('Ligne 4'));
+});
+
+// ---------- checkMilestones ----------
+console.log('checkMilestones');
+await test('checkMilestones : déclenche le palier si seuil atteint et distribue à tous les votants', async () => {
+  const ctx = makeCtx({
+    ts: fakeTs({
+      ranking: [
+        { playername: 'Mathi', votes: 30 },
+        { playername: 'Ketil', votes: 25 },
+      ],
+    }),
+    rewards: {
+      ...rewards,
+      milestones: [
+        {
+          votes: 50,
+          label: '50 votes',
+          reward: { item: 'Coins', amount: 50, label: '50 Piastres' },
+        },
+      ],
+    },
+    valheim: fakeValheim({ online: ['Mathi'] }),
+  });
+
+  ctx.store.recordMonthlyVoter('2026-09', 'Mathi');
+  ctx.store.recordMonthlyVoter('2026-09', 'Ketil');
+
+  await checkMilestones(ctx, new Date(2026, 8, 10));
+
+  // Mathi (en ligne) reçoit le give
+  assert.ok(ctx.valheim.gives.some((g) => g.playername === 'Mathi' && g.item === 'Coins' && g.amount === 50));
+  // Ketil (hors ligne) est mis en file
+  assert.ok(ctx.store.queue.some((q) => q.playername === 'Ketil' && q.kind === 'milestone'));
+  // Notification Discord
+  assert.ok(ctx.notify.calls.public.some((c) => c.kind === 'milestone' && c.totalVotes === 55));
+  // Marqué comme franchi
+  assert.equal(ctx.store.isMilestoneReached('2026-09', 50), true);
+
+  // Deuxième appel : ne doit pas ré-enclencher le palier
+  const givesCount = ctx.valheim.gives.length;
+  await checkMilestones(ctx, new Date(2026, 8, 10));
+  assert.equal(ctx.valheim.gives.length, givesCount);
 });
 
 // ---------- bilan ----------

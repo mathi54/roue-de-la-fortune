@@ -87,6 +87,13 @@ export async function handleClaimedVote(ctx, name, vote) {
     outcome,
     ...(vote?.test ? { test: true } : {}),
   });
+
+  // Mémorise le joueur comme votant du mois et vérifie les paliers collectifs
+  const voteDate = vote?.datetime ? new Date(vote.datetime) : new Date();
+  const monthKey = `${voteDate.getFullYear()}-${String(voteDate.getMonth() + 1).padStart(2, '0')}`;
+  ctx.store.recordMonthlyVoter?.(monthKey, target);
+  await checkMilestones(ctx, voteDate);
+
   return { outcome, target, prize };
 }
 
@@ -282,6 +289,55 @@ export async function runMonthlyIfDue(ctx, nowDate = new Date()) {
 export function previousMonthLabel(nowDate) {
   const d = new Date(nowDate.getFullYear(), nowDate.getMonth() - 1, 1);
   return d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+}
+
+/**
+ * Vérifie et distribue les récompenses des paliers collectifs communautaires (milestones).
+ */
+export async function checkMilestones(ctx, nowDate = new Date()) {
+  const milestones = ctx.rewards?.milestones;
+  if (!Array.isArray(milestones) || milestones.length === 0) return;
+
+  const monthKey = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}`;
+
+  let players;
+  try {
+    players = await ctx.ts.playersRanking('current');
+  } catch (err) {
+    ctx.log(`Top-Serveurs ranking indisponible pour les paliers : ${err.message}`);
+    return;
+  }
+
+  const totalVotes = (players || []).reduce((sum, p) => sum + (p.votes ?? p.count ?? 0), 0);
+  const voters = ctx.store.getMonthlyVoters?.(monthKey) || [];
+  if (!voters.length) return;
+
+  for (const milestone of milestones) {
+    if (totalVotes >= milestone.votes && !ctx.store.isMilestoneReached?.(monthKey, milestone.votes)) {
+      ctx.store.markMilestoneReached?.(monthKey, milestone.votes);
+      ctx.log(`🎉 Palier communautaire des ${milestone.votes} votes atteint (${totalVotes} votes) ! Distribution à ${voters.length} votant(s).`);
+
+      for (const voter of voters) {
+        ctx.store.enqueue({
+          playername: voter,
+          item: milestone.reward.item,
+          amount: milestone.reward.amount ?? 1,
+          prizeText: `Palier ${milestone.votes} votes : ${milestone.reward.label}`,
+          tierId: 'commun',
+          voteDate: null,
+          kind: 'milestone',
+        });
+      }
+
+      await ctx.notify.public?.('milestone', {
+        milestone,
+        totalVotes,
+        votersCount: voters.length,
+      });
+
+      await deliverQueue(ctx);
+    }
+  }
 }
 
 /**
