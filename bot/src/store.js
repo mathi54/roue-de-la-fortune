@@ -52,13 +52,23 @@ export class Store {
     this.save();
   }
 
-  /** Entrées de la file pour un ensemble de joueurs en ligne (comparaison insensible à la casse). */
-  takeDeliverable(onlineNames) {
-    const online = new Set(onlineNames.map((n) => n.toLowerCase()));
+  /**
+   * Entrées de la file pour un ensemble de joueurs en ligne.
+   * Compare le pseudo brut et le pseudo résolu par alias pour ne jamais bloquer une récompense en file.
+   */
+  takeDeliverable(onlineNames, resolveAliasFn = (n) => n) {
+    const online = new Set(onlineNames.map((n) => n.toLowerCase().trim()));
     const deliverable = [];
     const remaining = [];
     for (const e of this.data.queue) {
-      (online.has(e.playername.toLowerCase()) ? deliverable : remaining).push(e);
+      const raw = (e.playername || '').toLowerCase().trim();
+      const resolved = (resolveAliasFn(e.playername) || '').toLowerCase().trim();
+      if (online.has(raw) || online.has(resolved)) {
+        const effectiveName = online.has(resolved) ? resolveAliasFn(e.playername) : e.playername;
+        deliverable.push({ ...e, playername: effectiveName });
+      } else {
+        remaining.push(e);
+      }
     }
     this.data.queue = remaining;
     if (deliverable.length) this.save();

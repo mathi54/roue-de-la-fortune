@@ -9,6 +9,7 @@ Ce document répertorie et structure de manière déterministe les tâches d'év
 - **Phase 1 : Fiabilité & Robustesse Critique** `[4/4]`
 - **Phase 2 : Optimisations C# ValheimRestApi & Sécurité** `[2/2]`
 - **Phase 3 : Ergonomie Joueur & Fonctionnalités Communautaires** `[3/3]`
+- **Phase 4 : Fiabilisation Livraison & Reconnexion Joueur** `[2/2]`
 
 ---
 
@@ -110,3 +111,27 @@ Ce document répertorie et structure de manière déterministe les tâches d'év
     > 1. Définis une section `milestones` dans `rewards.json` contenant les seuils de votes et les récompenses associées.
     > 2. Dans `store.js`, mémorise les votants distincts du mois en cours et les paliers déjà validés.
     > 3. Dans `core.js`, vérifie après chaque vote validé si un nouveau palier collectif est franchi. Si oui, distribue le lot bonus à tous les votants du mois et publie une annonce festive sur Discord."
+
+---
+
+## Phase 4 : Fiabilisation Livraison & Reconnexion Joueur (Delivery Hardening)
+
+* [x] **Tâche 4.1 : Résolution rétroactive des alias et déblocage de la file d'attente**
+  * **Fichiers concernés :** [store.js](file:///d:/Work/roue-de-la-fortune/bot/src/store.js), [core.js](file:///d:/Work/roue-de-la-fortune/bot/src/core.js), [run-tests.js](file:///d:/Work/roue-de-la-fortune/bot/test/run-tests.js)
+  * **Objectif :** Permettre le déblocage des récompenses en file d'attente même si l'alias joueur a été configuré après l'émission du vote, en injectant une fonction de résolution dans `takeDeliverable`.
+  * **Prompt Antigravity :**
+    > "Dans `bot/src/store.js` et `bot/src/core.js` :
+    > 1. Mets à jour `Store.takeDeliverable(onlineNames, resolveAliasFn)` pour vérifier si les joueurs connectés correspondent soit au pseudo brut, soit au pseudo résolu.
+    > 2. En cas de correspondance sur le pseudo résolu, réécris le destinataire effectif avec le nom du personnage en jeu pour que le give réussisse.
+    > 3. Dans `core.js`, passe `(n) => resolveAlias(ctx, n)` à `ctx.store.takeDeliverable`.
+    > 4. Valide le comportement dans `bot/test/run-tests.js`."
+
+* [x] **Tâche 4.2 : Temporisation anti-rafale (Pacing), normalisation Unicode et guide joueur**
+  * **Fichiers concernés :** [core.js](file:///d:/Work/roue-de-la-fortune/bot/src/core.js), [GiveCommand.cs](file:///d:/Work/roue-de-la-fortune/valheim-restapi/Commands/GiveCommand.cs), [embeds.js](file:///d:/Work/roue-de-la-fortune/bot/src/embeds.js), [run-tests.js](file:///d:/Work/roue-de-la-fortune/bot/test/run-tests.js)
+  * **Objectif :** Éviter les rejets silencieux lors des distributions multiples à la reconnexion (saturation de paquets RPC) et les rejets liés aux accents/espaces dans les pseudos.
+  * **Prompt Antigravity :**
+    > "1. Dans `core.js`, intègre un délai de temporisation (pacing) de 500 ms (`await sleep(500)`) entre chaque envoi d'objet lors du vidage de la file d'attente.
+    > 2. Dans `valheim-restapi/Commands/GiveCommand.cs`, applique `Normalize(NormalizationForm.FormC)` et `Trim()` sur le pseudo cible et sur chaque `ZNetPeer.m_playerName`.
+    > 3. Dans `embeds.js`, complète le message de `/mes-recompenses` pour expliquer la fenêtre de 1 à 2 minutes de présence et le prérequis d'inventaire/poids libre.
+    > 4. Valide l'ensemble des cas dans `bot/test/run-tests.js`."
+

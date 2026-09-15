@@ -172,8 +172,9 @@ async function deliverOrQueue(ctx, name, prize, vote) {
 
 async function safeGive(ctx, name, prize) {
   try {
+    const mode = ctx.config?.valheim?.deliveryMode ?? 'rpc';
     return await ctx.valheim.give(name, prize.reward.item, prize.amount,
-      `Roue de la Fortune : ${prizeLabel(prize)} !`);
+      `Roue de la Fortune : ${prizeLabel(prize)} !`, mode);
   } catch {
     return false;
   }
@@ -202,13 +203,19 @@ export async function deliverQueue(ctx) {
 
   if (ctx.store.queue.length === 0 || stable.length === 0) return;
 
-  for (const entry of ctx.store.takeDeliverable(stable)) {
+  const resolveFn = (n) => resolveAlias(ctx, n);
+  const deliverable = ctx.store.takeDeliverable(stable, resolveFn);
+  const deliveryMode = ctx.config?.valheim?.deliveryMode ?? 'rpc';
+  const sleep = ctx.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+
+  for (const entry of deliverable) {
     let ok = false;
     try {
       ok = await ctx.valheim.give(entry.playername, entry.item, entry.amount,
         entry.kind === 'monthly'
           ? `Podium des votants : ${entry.prizeText} !`
-          : `Roue de la Fortune : ${entry.prizeText} !`);
+          : `Roue de la Fortune : ${entry.prizeText} !`,
+        deliveryMode);
     } catch { /* ok reste false */ }
 
     if (ok) {
@@ -224,6 +231,9 @@ export async function deliverQueue(ctx) {
       ctx.store.requeue(entry);
       await ctx.notify.admin('deliveryFailed', { playername: entry.playername, detail: 'échec du give différé' });
     }
+
+    // Pacing anti-rafale entre deux envois d'objets pour éviter l'engorgement client
+    await sleep(500);
   }
 }
 

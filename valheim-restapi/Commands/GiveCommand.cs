@@ -46,19 +46,22 @@ namespace ValheimRestApi.Commands
             var znet = ZNet.instance;
             if (znet == null) return Fail("ZNet not ready");
 
-            // === 1) Trouver le joueur connecte (insensible a la casse) ===
+            // === 1) Trouver le joueur connecte (insensible a la casse et aux formes Unicode) ===
             ZNetPeer target = null;
             var peers = znet.GetPeers();
             if (peers != null)
             {
+                string targetNameNorm = playername.Trim().Normalize(System.Text.NormalizationForm.FormC);
                 foreach (var peer in peers)
                 {
-                    if (peer != null &&
-                        string.Equals(peer.m_playerName, playername.Trim(),
-                                      StringComparison.OrdinalIgnoreCase))
+                    if (peer != null && !string.IsNullOrEmpty(peer.m_playerName))
                     {
-                        target = peer;
-                        break;
+                        string peerNameNorm = peer.m_playerName.Trim().Normalize(System.Text.NormalizationForm.FormC);
+                        if (string.Equals(peerNameNorm, targetNameNorm, StringComparison.OrdinalIgnoreCase))
+                        {
+                            target = peer;
+                            break;
+                        }
                     }
                 }
             }

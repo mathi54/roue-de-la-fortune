@@ -148,8 +148,8 @@ export function myPendingRewards(playername, entries) {
   return {
     color: COLOR_GOLD,
     title: `📦 Récompenses en attente — ${playername} (${entries.length})`,
-    description: `Ces récompenses te seront livrées dès que tu seras connecté au serveur :\n\n${lines.join('\n')}`,
-    footer: { text: `${FOOTER} · Reconnecte-toi en jeu pour les recevoir !` },
+    description: `Ces récompenses te seront livrées dès que tu seras connecté au serveur :\n\n${lines.join('\n')}\n\n💡 *Note : La livraison s'effectue après 1 à 2 minutes de présence stable en jeu (cycle de vérification). Pense à conserver de la place et du poids libre dans ton inventaire !*`,
+    footer: { text: `${FOOTER} · Reste connecté 1-2 min avec de la place dans l'inventaire` },
   };
 }
 

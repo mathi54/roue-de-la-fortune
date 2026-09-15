@@ -83,6 +83,7 @@ function makeCtx(overrides = {}) {
     notify: fakeNotify(),
     log: () => {},
     rng: Math.random,
+    sleep: async () => {},
     // Par défaut dans les tests : les joueurs listés sont considérés stables
     // (en ligne depuis plus d'un cycle). Les tests de la fenêtre de stabilité
     // écrasent ce champ.
@@ -232,6 +233,19 @@ await test('Store : takeDeliverable insensible à la casse, expireQueue', () => 
   assert.equal(expired.length, 1);
   assert.equal(expired[0].playername, 'Freyja');
   assert.equal(s.queue.length, 0);
+});
+
+await test('Store : takeDeliverable avec fonction de résolution d\'alias rétroactive', () => {
+  const s = new Store(join(tmp, 'q-alias.json'));
+  s.enqueue({ playername: 'KrisDiscord', item: 'Coins', amount: 20, prizeText: 'x', tierId: 'commun' });
+  s.enqueue({ playername: 'Autre', item: 'Coins', amount: 10, prizeText: 'y', tierId: 'commun' });
+  const aliases = { 'krisdiscord': 'Paikan24' };
+  const resolveAliasFn = (n) => aliases[n.toLowerCase()] ?? n;
+  const d = s.takeDeliverable(['Paikan24'], resolveAliasFn);
+  assert.equal(d.length, 1);
+  assert.equal(d[0].playername, 'Paikan24');
+  assert.equal(s.queue.length, 1);
+  assert.equal(s.queue[0].playername, 'Autre');
 });
 
 await test('Store : traçabilité des tirages (addHistory, getHistory, limitation de taille)', () => {
@@ -473,6 +487,25 @@ await test('give différé échoue → remise en file, pas de perte', async () =
   assert.equal(ctx.notify.calls.admin[0].kind, 'deliveryFailed');
 });
 
+await test('deliverQueue : temporisation anti-rafale (sleep) et résolution d\'alias rétroactive', async () => {
+  const sleeps = [];
+  const ctx = makeCtx({
+    valheim: fakeValheim({ online: ['Paikan24'] }),
+    _prevOnline: new Set(['paikan24']),
+    sleep: async (ms) => sleeps.push(ms),
+  });
+  ctx.config.aliases = { 'kris': 'Paikan24' };
+  ctx.store.enqueue({ playername: 'kris', item: 'Coins', amount: 20, prizeText: 'x', tierId: 'commun' });
+  ctx.store.enqueue({ playername: 'Paikan24', item: 'Ruby', amount: 1, prizeText: 'y', tierId: 'rare' });
+
+  await deliverQueue(ctx);
+  assert.equal(ctx.valheim.gives.length, 2);
+  assert.equal(ctx.valheim.gives[0].playername, 'Paikan24');
+  assert.equal(ctx.valheim.gives[1].playername, 'Paikan24');
+  assert.equal(sleeps.length, 2);
+  assert.equal(sleeps[0], 500);
+});
+
 await test('entrée expirée → retirée + log admin "expired"', async () => {
   let clock = 0;
   const store = new Store(join(tmp, 'exp.json'), () => clock);
@@ -701,6 +734,12 @@ await test('checkMilestones : déclenche le palier si seuil atteint et distribue
   const givesCount = ctx.valheim.gives.length;
   await checkMilestones(ctx, new Date(2026, 8, 10));
   assert.equal(ctx.valheim.gives.length, givesCount);
+});
+
+await test('embeds : myPendingRewards contient les instructions de stabilité et inventaire', () => {
+  const embed = embeds.myPendingRewards('Mathi', [{ prizeText: '💰 20 × Piastres', queuedAt: Date.now() }]);
+  assert.ok(embed.description.includes('1 à 2 minutes'));
+  assert.ok(embed.description.includes('inventaire'));
 });
 
 // ---------- bilan ----------

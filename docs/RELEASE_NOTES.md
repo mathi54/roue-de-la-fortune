@@ -41,8 +41,18 @@ Cette version majeure apporte une fiabilisation complète du cycle de vie du bot
   - Ajout des routes HTTP admin `GET /queue` (inspection des items en attente) et `POST /queue/deliver` (déclenchement forcé d'un cycle de livraison pour les joueurs en ligne).
   - Documentation complète des commandes `curl` associées dans `GUIDE_UTILISATEUR.md`.
 
+### 🎁 Fiabilisation de la Livraison à la Reconnexion & Résolution d'Alias
+- **Résolution rétroactive dynamique des alias ([store.js](file:///d:/Work/roue-de-la-fortune/bot/src/store.js), [core.js](file:///d:/Work/roue-de-la-fortune/bot/src/core.js)) :**
+  - Si un alias a été configuré dans `config.json` postérieurement à la mise en file d'un lot, `takeDeliverable` compare désormais à la fois le pseudo brut et le pseudo résolu pour livrer directement l'item au personnage en jeu.
+- **Temporisation anti-rafale (Pacing) des paquets RPC ([core.js](file:///d:/Work/roue-de-la-fortune/bot/src/core.js)) :**
+  - Insertion d'une pause progressive de 500 ms entre deux distributions lors du vidage de la file, évitant l'engorgement du client Valheim Unity et les désynchronisations lors de distributions multiples.
+- **Normalisation Unicode FormC et robustesse des pseudos ([GiveCommand.cs](file:///d:/Work/roue-de-la-fortune/valheim-restapi/Commands/GiveCommand.cs)) :**
+  - Nettoyage et normalisation Unicode FormC des noms de joueurs lors de la recherche de `ZNetPeer` pour éliminer tout risque d'échec sur les caractères accentués ou les espaces superflus.
+- **Accompagnement et ergonomie joueur ([embeds.js](file:///d:/Work/roue-de-la-fortune/bot/src/embeds.js)) :**
+  - Ajout d'une mention explicative dans l'embed de `/mes-recompenses` rappelant la fenêtre de vérification de 1 à 2 minutes après connexion et la nécessité de disposer de place et de poids libre dans l'inventaire.
+
 ### 🧪 Tests & Qualité
-- Couverture étendue : **46 tests unitaires** passants ([run-tests.js](file:///d:/Work/roue-de-la-fortune/bot/test/run-tests.js)), couvrant l'arriéré du podium, les boucles `safeLoop`, le module de logging, l'historique de traçabilité, les embeds et les paliers collectifs.
+- Couverture étendue : **49 tests unitaires** passants ([run-tests.js](file:///d:/Work/roue-de-la-fortune/bot/test/run-tests.js)), couvrant l'arriéré du podium, les boucles `safeLoop`, le module de logging, l'historique de traçabilité, les alias rétroactifs, le pacing et les paliers collectifs.
 
 ---
 
