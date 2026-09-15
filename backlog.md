@@ -6,7 +6,7 @@ Ce document répertorie et structure de manière déterministe les tâches d'év
 
 ## 📌 Synthèse de l'état d'avancement
 
-- **Phase 1 : Fiabilité & Robustesse Critique** `[1/4]`
+- **Phase 1 : Fiabilité & Robustesse Critique** `[2/4]`
 - **Phase 2 : Optimisations C# ValheimRestApi & Sécurité** `[0/2]`
 - **Phase 3 : Ergonomie Joueur & Fonctionnalités Communautaires** `[0/3]`
 
@@ -25,7 +25,7 @@ Ce document répertorie et structure de manière déterministe les tâches d'év
   > [!IMPORTANT]
   > Le marquage `ctx.store.markMonthlyRun(monthKey)` doit impérativement rester positionné AVANT l'envoi dans la file d'attente pour éviter tout doublon de récompenses en cas de crash réseau ou d'exception.
 
-* [ ] **Tâche 1.2 : Boucles asynchrones sûres anti-chevauchement (Pattern safeLoop)**
+* [x] **Tâche 1.2 : Boucles asynchrones sûres anti-chevauchement (Pattern safeLoop)**
   * **Fichiers concernés :** [index.js](file:///d:/Work/roue-de-la-fortune/bot/src/index.js)
   * **Objectif :** Éliminer `setInterval` au profit d'un mécanisme de boucle récursive séquentielle avec verrouillage d'exécution pour empêcher que des appels réseau longs (ex: timeout Top-Serveurs ou ValheimRestApi) ne s'exécutent en concurrence.
   * **Prompt Antigravity :**

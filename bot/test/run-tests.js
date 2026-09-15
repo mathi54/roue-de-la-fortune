@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { drawReward, drawAmount, prizeLabel, monthlyPrizeForRank } from '../src/rewards.js';
 import { voteName, voteKey, TopServeursClient } from '../src/topserveurs.js';
 import { Store } from '../src/store.js';
-import { processVotes, deliverQueue, runMonthlyIfDue, fakeVote } from '../src/core.js';
+import { processVotes, deliverQueue, runMonthlyIfDue, fakeVote, safeLoop } from '../src/core.js';
 import * as embeds from '../src/embeds.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -554,6 +554,35 @@ await test('fakeVote : alias résolu + inconnu → "voteOnly" ; pseudo vide → 
   assert.equal(r2.outcome, 'voteOnly');
   assert.equal(ctx.valheim.gives.length, 1);
   await assert.rejects(() => fakeVote(ctx, '   '), /playername manquant/);
+});
+
+// ---------- safeLoop ----------
+console.log('safeLoop');
+await test('safeLoop : exécute le premier tick immédiatement et permet un arrêt propre', async () => {
+  let runs = 0;
+  const stop = safeLoop(async () => { runs++; }, 0.05, 'testLoop');
+  assert.equal(runs, 1);
+  await new Promise((r) => setTimeout(r, 70));
+  assert.ok(runs >= 2, `devrait avoir au moins 2 runs, a eu ${runs}`);
+  stop();
+  const runsAtStop = runs;
+  await new Promise((r) => setTimeout(r, 70));
+  assert.equal(runs, runsAtStop, 'ne doit plus s\'exécuter après stop()');
+});
+
+await test('safeLoop : capture les erreurs sans rompre le cycle suivant', async () => {
+  let runs = 0;
+  const logs = [];
+  const stop = safeLoop(async () => {
+    runs++;
+    if (runs === 1) throw new Error('erreur simulée');
+  }, 0.05, 'testErrorLoop', (msg) => logs.push(msg));
+
+  assert.equal(runs, 1);
+  await new Promise((r) => setTimeout(r, 70));
+  assert.ok(runs >= 2, 'devrait continuer à tourner malgré l\'erreur');
+  assert.ok(logs.some((l) => l.includes('erreur simulée')));
+  stop();
 });
 
 // ---------- bilan ----------

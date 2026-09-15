@@ -10,7 +10,7 @@ import { loadConfig } from './config.js';
 import { TopServeursClient } from './topserveurs.js';
 import { ValheimClient } from './valheim.js';
 import { Store } from './store.js';
-import { processVotes, deliverQueue, runMonthlyIfDue, fakeVote } from './core.js';
+import { processVotes, deliverQueue, runMonthlyIfDue, fakeVote, safeLoop } from './core.js';
 import * as embeds from './embeds.js';
 import { prizeLabel } from './rewards.js';
 
@@ -135,19 +135,15 @@ async function upsertRewardsTable() {
   }
 }
 
-function loop(fn, intervalSec, label) {
-  const run = () => fn().catch((err) => log(`${label} : ${err.message}`));
-  run();
-  setInterval(run, intervalSec * 1000);
-}
+const stoppers = [];
 
 client.once('clientReady', async () => {
   log(`Connecté en tant que ${client.user.tag} — La Roue de la Fortune est en place ⚔️`);
   await upsertRewardsTable();
   startAdminApi();
-  loop(() => processVotes(ctx), config.topServeurs.pollIntervalSec ?? 60, 'processVotes');
-  loop(() => deliverQueue(ctx), config.queue?.retryIntervalSec ?? 60, 'deliverQueue');
-  loop(() => runMonthlyIfDue(ctx), 300, 'monthly');
+  stoppers.push(safeLoop(() => processVotes(ctx), config.topServeurs.pollIntervalSec ?? 60, 'processVotes', log));
+  stoppers.push(safeLoop(() => deliverQueue(ctx), config.queue?.retryIntervalSec ?? 60, 'deliverQueue', log));
+  stoppers.push(safeLoop(() => runMonthlyIfDue(ctx), 300, 'monthly', log));
 });
 
 client.login(config.discord.token).catch((err) => {

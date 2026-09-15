@@ -267,3 +267,40 @@ export function previousMonthLabel(nowDate) {
   const d = new Date(nowDate.getFullYear(), nowDate.getMonth() - 1, 1);
   return d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 }
+
+/**
+ * Boucle asynchrone sûre : exécute fn séquentiellement avec répit,
+ * empêchant tout chevauchement en cas de latence réseau.
+ * @returns {() => void} fonction d'arrêt de la boucle
+ */
+export function safeLoop(fn, intervalSec, label, logFn = console.log) {
+  let isRunning = false;
+  let timerId = null;
+  let stopped = false;
+
+  const tick = async () => {
+    if (stopped) return;
+    if (isRunning) {
+      logFn(`${label} : cycle précédent encore en cours, tick sauté`);
+      return;
+    }
+    isRunning = true;
+    try {
+      await fn();
+    } catch (err) {
+      logFn(`${label} : ${err.message}`);
+    } finally {
+      isRunning = false;
+      if (!stopped) {
+        timerId = setTimeout(tick, intervalSec * 1000);
+      }
+    }
+  };
+
+  tick();
+
+  return () => {
+    stopped = true;
+    if (timerId) clearTimeout(timerId);
+  };
+}
