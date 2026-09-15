@@ -26,7 +26,7 @@ namespace ValheimRestApi.Commands
         public string Route => "give";
         public string Description => "Donne un item a un joueur connecte : { playername, item, amount, message?, mode? }.";
 
-        private const int MaxAmount = 1000;
+        private const int MaxAmount = 10000;
         private const string RpcGiveItem = "EventController_GiveItem"; // doit matcher Commands.RpcGiveItem d'EventController
 
         public string Execute(string body)

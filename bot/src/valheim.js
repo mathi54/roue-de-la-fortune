@@ -39,9 +39,25 @@ export class ValheimClient {
 
   /**
    * Donne un objet à un joueur connecté (insertion inventaire via RPC EventController).
+   * Si la quantité dépasse 1000 (ex: 1500 piastres du Trésor du Jarl), découpe automatiquement
+   * en sous-paquets de 1000 maximum pour respecter la limite du serveur Valheim.
    * @returns {Promise<boolean>} true si la livraison a réussi
    */
   async give(playername, item, amount, message = '', mode = 'rpc') {
+    if (amount > 1000) {
+      let remaining = amount;
+      while (remaining > 0) {
+        const chunk = Math.min(remaining, 1000);
+        const ok = await this.#giveSingle(playername, item, chunk, message, mode);
+        if (!ok) return false;
+        remaining -= chunk;
+      }
+      return true;
+    }
+    return this.#giveSingle(playername, item, amount, message, mode);
+  }
+
+  async #giveSingle(playername, item, amount, message = '', mode = 'rpc') {
     const res = await this.fetch(`${this.baseUrl}/give`, {
       method: 'POST',
       headers: this.#headers(),
