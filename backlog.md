@@ -6,7 +6,7 @@ Ce document répertorie et structure de manière déterministe les tâches d'év
 
 ## 📌 Synthèse de l'état d'avancement
 
-- **Phase 1 : Fiabilité & Robustesse Critique** `[2/4]`
+- **Phase 1 : Fiabilité & Robustesse Critique** `[3/4]`
 - **Phase 2 : Optimisations C# ValheimRestApi & Sécurité** `[0/2]`
 - **Phase 3 : Ergonomie Joueur & Fonctionnalités Communautaires** `[0/3]`
 
@@ -35,7 +35,7 @@ Ce document répertorie et structure de manière déterministe les tâches d'év
     > 3. Gère les erreurs sans interrompre la programmation du tick suivant.
     > 4. Applique ce pattern pour les 3 boucles : `processVotes`, `deliverQueue` et `runMonthlyIfDue`."
 
-* [ ] **Tâche 1.3 : Arrêt gracieux (Graceful Shutdown) et libération des ressources**
+* [x] **Tâche 1.3 : Arrêt gracieux (Graceful Shutdown) et libération des ressources**
   * **Fichiers concernés :** [index.js](file:///d:/Work/roue-de-la-fortune/bot/src/index.js)
   * **Objectif :** Conformer l'application à la directive de gestion de la mémoire et des ressources en écoutant les signaux système `SIGINT` et `SIGTERM` pour couper proprement les instances actives.
   * **Prompt Antigravity :**

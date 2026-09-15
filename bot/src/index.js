@@ -87,12 +87,14 @@ const ctx = { ts, valheim, store, rewards, config, notify, log, rng: Math.random
  * Simule un vote sans passer par Top-Serveurs (tirage, embed, give/file identiques).
  * Désactivée si config.admin.token est absent.
  */
+let adminServer = null;
+
 function startAdminApi() {
   const cfg = config.admin;
   if (!cfg?.token) { log('API admin désactivée (config.admin.token absent).'); return; }
   const port = cfg.port ?? 52859;
 
-  const server = createServer(async (req, res) => {
+  adminServer = createServer(async (req, res) => {
     const reply = (status, body) => {
       res.writeHead(status, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(body));
@@ -114,8 +116,8 @@ function startAdminApi() {
     }
   });
 
-  server.on('error', (err) => log(`API admin : ${err.message}`));
-  server.listen(port, '127.0.0.1', () => log(`API admin à l'écoute sur http://127.0.0.1:${port} (POST /fakevote)`));
+  adminServer.on('error', (err) => log(`API admin : ${err.message}`));
+  adminServer.listen(port, '127.0.0.1', () => log(`API admin à l'écoute sur http://127.0.0.1:${port} (POST /fakevote)`));
 }
 
 /** Publie ou met à jour le message épinglé "Tableau des gains". */
@@ -145,6 +147,31 @@ client.once('clientReady', async () => {
   stoppers.push(safeLoop(() => deliverQueue(ctx), config.queue?.retryIntervalSec ?? 60, 'deliverQueue', log));
   stoppers.push(safeLoop(() => runMonthlyIfDue(ctx), 300, 'monthly', log));
 });
+
+let isShuttingDown = false;
+export function gracefulShutdown(signal = 'SIGTERM') {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  log(`Arrêt gracieux suite au signal ${signal}...`);
+
+  for (const stop of stoppers) {
+    try { stop(); } catch { /* ignore */ }
+  }
+
+  if (adminServer) {
+    try { adminServer.close(); } catch { /* ignore */ }
+  }
+
+  try {
+    client.destroy();
+  } catch { /* ignore */ }
+
+  log('Ressources libérées. Arrêt complet.');
+  process.exit(0);
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 client.login(config.discord.token).catch((err) => {
   console.error(`Connexion Discord impossible : ${err.message}`);
