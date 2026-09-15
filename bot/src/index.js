@@ -3,7 +3,7 @@
  * Connexion Discord, boucles de polling (votes, file d'attente, podium mensuel),
  * mise à jour du tableau des gains épinglé.
  */
-import { Client, GatewayIntentBits } from 'discord.js';
+import { Client, GatewayIntentBits, MessageFlags } from 'discord.js';
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 import { loadConfig } from './config.js';
@@ -222,10 +222,10 @@ client.on('interactionCreate', async (interaction) => {
       });
 
       const embed = embeds.myPendingRewards(target, entries);
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      await interaction.reply({ embeds: [embed], flags: MessageFlags?.Ephemeral ?? 64 });
     } catch (err) {
       log(`Erreur interaction /mes-recompenses : ${err.message}`);
-      await interaction.reply({ content: 'Une erreur est survenue lors de la consultation de tes récompenses.', ephemeral: true }).catch(() => {});
+      await interaction.reply({ content: 'Une erreur est survenue lors de la consultation de tes récompenses.', flags: MessageFlags?.Ephemeral ?? 64 }).catch(() => {});
     }
   } else if (interaction.commandName === 'roue-classement') {
     try {
@@ -238,7 +238,7 @@ client.on('interactionCreate', async (interaction) => {
       if (interaction.deferred) {
         await interaction.editReply({ content: 'Impossible de récupérer le classement pour le moment.' }).catch(() => {});
       } else {
-        await interaction.reply({ content: 'Impossible de récupérer le classement pour le moment.', ephemeral: true }).catch(() => {});
+        await interaction.reply({ content: 'Impossible de récupérer le classement pour le moment.', flags: MessageFlags?.Ephemeral ?? 64 }).catch(() => {});
       }
     }
   }
