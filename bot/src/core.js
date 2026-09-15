@@ -215,7 +215,8 @@ export async function runMonthlyIfDue(ctx, nowDate = new Date()) {
 
   const day = cfg.dayOfMonth ?? 1;
   const hour = cfg.hour ?? 10;
-  if (nowDate.getDate() !== day || nowDate.getHours() < hour) return;
+  const isDue = nowDate.getDate() > day || (nowDate.getDate() === day && nowDate.getHours() >= hour);
+  if (!isDue) return;
 
   const monthKey = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}`;
   if (ctx.store.monthlyAlreadyRun(monthKey)) return;

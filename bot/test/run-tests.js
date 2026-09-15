@@ -478,10 +478,17 @@ await test('le 1er du mois à 10h → distribution top 3 + rangs 4-5, pas le 6e'
   assert.ok(ctx.valheim.gives.some((g) => g.playername === 'Mathi'));
 });
 
-await test('pas le bon jour → rien ne se passe', async () => {
+await test('avant l\'échéance (1er du mois à 9h) → rien ne se passe', async () => {
+  const ctx = makeCtx({ ts: fakeTs({ ranking }) });
+  await runMonthlyIfDue(ctx, new Date(2026, 8, 1, 9, 0));
+  assert.equal(ctx.notify.calls.podium.length, 0);
+});
+
+await test('rattrapage le 15 du mois si pas encore exécuté → distribution effectuée', async () => {
   const ctx = makeCtx({ ts: fakeTs({ ranking }) });
   await runMonthlyIfDue(ctx, new Date(2026, 8, 15, 12, 0));
-  assert.equal(ctx.notify.calls.podium.length, 0);
+  assert.equal(ctx.notify.calls.podium.length, 1);
+  assert.equal(ctx.store.monthlyAlreadyRun('2026-09'), true);
 });
 
 await test('déjà distribué ce mois-ci → aucune double distribution', async () => {
@@ -489,6 +496,7 @@ await test('déjà distribué ce mois-ci → aucune double distribution', async 
   await runMonthlyIfDue(ctx, new Date(2026, 8, 1, 10, 5));
   const queued = ctx.store.queue.length;
   await runMonthlyIfDue(ctx, new Date(2026, 8, 1, 11, 0));
+  await runMonthlyIfDue(ctx, new Date(2026, 8, 15, 12, 0)); // même 14 jours plus tard
   assert.equal(ctx.store.queue.length, queued);
   assert.equal(ctx.notify.calls.podium.length, 1);
 });

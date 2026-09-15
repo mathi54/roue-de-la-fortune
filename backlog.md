@@ -6,7 +6,7 @@ Ce document répertorie et structure de manière déterministe les tâches d'év
 
 ## 📌 Synthèse de l'état d'avancement
 
-- **Phase 1 : Fiabilité & Robustesse Critique** `[0/4]`
+- **Phase 1 : Fiabilité & Robustesse Critique** `[1/4]`
 - **Phase 2 : Optimisations C# ValheimRestApi & Sécurité** `[0/2]`
 - **Phase 3 : Ergonomie Joueur & Fonctionnalités Communautaires** `[0/3]`
 
@@ -14,7 +14,7 @@ Ce document répertorie et structure de manière déterministe les tâches d'év
 
 ## Phase 1 : Fiabilité & Robustesse Critique (Production-Ready)
 
-* [ ] **Tâche 1.1 : Détection d'arriéré et rattrapage automatique du podium mensuel**
+* [x] **Tâche 1.1 : Détection d'arriéré et rattrapage automatique du podium mensuel**
   * **Fichiers concernés :** [core.js](file:///d:/Work/roue-de-la-fortune/bot/src/core.js), [run-tests.js](file:///d:/Work/roue-de-la-fortune/bot/test/run-tests.js)
   * **Objectif :** Remplacer le test strict `nowDate.getDate() !== day` par une logique d'arriéré afin que le podium du mois précédent soit automatiquement distribué même si le bot a été éteint ou en maintenance le 1er du mois, tout en garantissant l'absence de double distribution.
   * **Prompt Antigravity :**
