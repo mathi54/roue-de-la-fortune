@@ -115,6 +115,21 @@ Le bot fait **exactement** comme si « kris » venait de voter : alias (→ Paik
 
 À savoir : la récompense est **réelle** (c'est le but du test), Top-Serveurs n'est pas contacté (pas de claim), et le classement mensuel n'est pas touché. Dans la console AMP, ces votes sont préfixés `[TEST]` ; dans `state.json`, les entrées de file correspondantes portent `"test": true`.
 
+### Autres commandes de l'API locale d'administration
+
+- **Consulter les derniers logs (diagnostic embarqué) :**
+  ```bash
+  curl http://127.0.0.1:52859/logs?limit=50 -H "X-Auth-Token: un-secret-a-toi"
+  ```
+- **Inspecter les récompenses en attente dans la file :**
+  ```bash
+  curl http://127.0.0.1:52859/queue -H "X-Auth-Token: un-secret-a-toi"
+  ```
+- **Forcer un cycle de livraison immédiat pour tous les joueurs actuellement en ligne :**
+  ```bash
+  curl -X POST http://127.0.0.1:52859/queue/deliver -H "X-Auth-Token: un-secret-a-toi"
+  ```
+
 ## 8. Que faire si…
 
 | Symptôme | Cause probable | Solution |

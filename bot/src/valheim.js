@@ -41,11 +41,11 @@ export class ValheimClient {
    * Donne un objet à un joueur connecté (insertion inventaire via RPC EventController).
    * @returns {Promise<boolean>} true si la livraison a réussi
    */
-  async give(playername, item, amount, message = '') {
+  async give(playername, item, amount, message = '', mode = 'rpc') {
     const res = await this.fetch(`${this.baseUrl}/give`, {
       method: 'POST',
       headers: this.#headers(),
-      body: JSON.stringify({ playername, item, amount, message }),
+      body: JSON.stringify({ playername, item, amount, message, mode }),
       signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) return false;

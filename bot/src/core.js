@@ -66,11 +66,34 @@ export async function handleClaimedVote(ctx, name, vote) {
       !ctx.store.isKnownPlayer(target)) {
     ctx.log(`Vote de « ${name} » (extérieur au serveur) : annonce simple, pas de récompense.`);
     await ctx.notify.public('voteOnly', { playername: name });
+    ctx.store.addHistory?.({
+      voter: name,
+      target,
+      tierId: null,
+      prizeText: null,
+      outcome: 'voteOnly',
+      ...(vote?.test ? { test: true } : {}),
+    });
     return { outcome: 'voteOnly', target };
   }
 
   const prize = drawReward(ctx.rewards, ctx.rng);
   const outcome = await deliverOrQueue(ctx, target, prize, vote);
+  ctx.store.addHistory?.({
+    voter: name,
+    target,
+    tierId: prize.tier.id,
+    prizeText: prizeLabel(prize),
+    outcome,
+    ...(vote?.test ? { test: true } : {}),
+  });
+
+  // Mémorise le joueur comme votant du mois et vérifie les paliers collectifs
+  const voteDate = vote?.datetime ? new Date(vote.datetime) : new Date();
+  const monthKey = `${voteDate.getFullYear()}-${String(voteDate.getMonth() + 1).padStart(2, '0')}`;
+  ctx.store.recordMonthlyVoter?.(monthKey, target);
+  await checkMilestones(ctx, voteDate);
+
   return { outcome, target, prize };
 }
 
@@ -149,8 +172,9 @@ async function deliverOrQueue(ctx, name, prize, vote) {
 
 async function safeGive(ctx, name, prize) {
   try {
+    const mode = ctx.config?.valheim?.deliveryMode ?? 'rpc';
     return await ctx.valheim.give(name, prize.reward.item, prize.amount,
-      `Roue de la Fortune : ${prizeLabel(prize)} !`);
+      `Roue de la Fortune : ${prizeLabel(prize)} !`, mode);
   } catch {
     return false;
   }
@@ -179,13 +203,19 @@ export async function deliverQueue(ctx) {
 
   if (ctx.store.queue.length === 0 || stable.length === 0) return;
 
-  for (const entry of ctx.store.takeDeliverable(stable)) {
+  const resolveFn = (n) => resolveAlias(ctx, n);
+  const deliverable = ctx.store.takeDeliverable(stable, resolveFn);
+  const deliveryMode = ctx.config?.valheim?.deliveryMode ?? 'rpc';
+  const sleep = ctx.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+
+  for (const entry of deliverable) {
     let ok = false;
     try {
       ok = await ctx.valheim.give(entry.playername, entry.item, entry.amount,
         entry.kind === 'monthly'
           ? `Podium des votants : ${entry.prizeText} !`
-          : `Roue de la Fortune : ${entry.prizeText} !`);
+          : `Roue de la Fortune : ${entry.prizeText} !`,
+        deliveryMode);
     } catch { /* ok reste false */ }
 
     if (ok) {
@@ -201,6 +231,9 @@ export async function deliverQueue(ctx) {
       ctx.store.requeue(entry);
       await ctx.notify.admin('deliveryFailed', { playername: entry.playername, detail: 'échec du give différé' });
     }
+
+    // Pacing anti-rafale entre deux envois d'objets pour éviter l'engorgement client
+    await sleep(500);
   }
 }
 
@@ -215,7 +248,8 @@ export async function runMonthlyIfDue(ctx, nowDate = new Date()) {
 
   const day = cfg.dayOfMonth ?? 1;
   const hour = cfg.hour ?? 10;
-  if (nowDate.getDate() !== day || nowDate.getHours() < hour) return;
+  const isDue = nowDate.getDate() > day || (nowDate.getDate() === day && nowDate.getHours() >= hour);
+  if (!isDue) return;
 
   const monthKey = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}`;
   if (ctx.store.monthlyAlreadyRun(monthKey)) return;
@@ -265,4 +299,90 @@ export async function runMonthlyIfDue(ctx, nowDate = new Date()) {
 export function previousMonthLabel(nowDate) {
   const d = new Date(nowDate.getFullYear(), nowDate.getMonth() - 1, 1);
   return d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+}
+
+/**
+ * Vérifie et distribue les récompenses des paliers collectifs communautaires (milestones).
+ */
+export async function checkMilestones(ctx, nowDate = new Date()) {
+  const milestones = ctx.rewards?.milestones;
+  if (!Array.isArray(milestones) || milestones.length === 0) return;
+
+  const monthKey = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}`;
+
+  let players;
+  try {
+    players = await ctx.ts.playersRanking('current');
+  } catch (err) {
+    ctx.log(`Top-Serveurs ranking indisponible pour les paliers : ${err.message}`);
+    return;
+  }
+
+  const totalVotes = (players || []).reduce((sum, p) => sum + (p.votes ?? p.count ?? 0), 0);
+  const voters = ctx.store.getMonthlyVoters?.(monthKey) || [];
+  if (!voters.length) return;
+
+  for (const milestone of milestones) {
+    if (totalVotes >= milestone.votes && !ctx.store.isMilestoneReached?.(monthKey, milestone.votes)) {
+      ctx.store.markMilestoneReached?.(monthKey, milestone.votes);
+      ctx.log(`🎉 Palier communautaire des ${milestone.votes} votes atteint (${totalVotes} votes) ! Distribution à ${voters.length} votant(s).`);
+
+      for (const voter of voters) {
+        ctx.store.enqueue({
+          playername: voter,
+          item: milestone.reward.item,
+          amount: milestone.reward.amount ?? 1,
+          prizeText: `Palier ${milestone.votes} votes : ${milestone.reward.label}`,
+          tierId: 'commun',
+          voteDate: null,
+          kind: 'milestone',
+        });
+      }
+
+      await ctx.notify.public?.('milestone', {
+        milestone,
+        totalVotes,
+        votersCount: voters.length,
+      });
+
+      await deliverQueue(ctx);
+    }
+  }
+}
+
+/**
+ * Boucle asynchrone sûre : exécute fn séquentiellement avec répit,
+ * empêchant tout chevauchement en cas de latence réseau.
+ * @returns {() => void} fonction d'arrêt de la boucle
+ */
+export function safeLoop(fn, intervalSec, label, logFn = console.log) {
+  let isRunning = false;
+  let timerId = null;
+  let stopped = false;
+
+  const tick = async () => {
+    if (stopped) return;
+    if (isRunning) {
+      logFn(`${label} : cycle précédent encore en cours, tick sauté`);
+      return;
+    }
+    isRunning = true;
+    try {
+      await fn();
+    } catch (err) {
+      logFn(`${label} : ${err.message}`);
+    } finally {
+      isRunning = false;
+      if (!stopped) {
+        timerId = setTimeout(tick, intervalSec * 1000);
+      }
+    }
+  };
+
+  tick();
+
+  return () => {
+    stopped = true;
+    if (timerId) clearTimeout(timerId);
+  };
 }
