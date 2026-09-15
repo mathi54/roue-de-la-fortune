@@ -8,7 +8,7 @@ Ce document répertorie et structure de manière déterministe les tâches d'év
 
 - **Phase 1 : Fiabilité & Robustesse Critique** `[4/4]`
 - **Phase 2 : Optimisations C# ValheimRestApi & Sécurité** `[2/2]`
-- **Phase 3 : Ergonomie Joueur & Fonctionnalités Communautaires** `[1/3]`
+- **Phase 3 : Ergonomie Joueur & Fonctionnalités Communautaires** `[2/3]`
 
 ---
 
@@ -93,7 +93,7 @@ Ce document répertorie et structure de manière déterministe les tâches d'év
     > 2. Ajoute la route `POST /queue/deliver` déclenchant immédiatement un appel à `deliverQueue(ctx)` et renvoyant le statut d'exécution.
     > 3. Documente les commandes `curl` correspondantes dans `docs/GUIDE_UTILISATEUR.md`."
 
-* [ ] **Tâche 3.2 : Commandes Slash Discord d'auto-assistance (`/mes-recompenses`, `/roue-classement`)**
+* [x] **Tâche 3.2 : Commandes Slash Discord d'auto-assistance (`/mes-recompenses`, `/roue-classement`)**
   * **Fichiers concernés :** [index.js](file:///d:/Work/roue-de-la-fortune/bot/src/index.js), [core.js](file:///d:/Work/roue-de-la-fortune/bot/src/core.js), [embeds.js](file:///d:/Work/roue-de-la-fortune/bot/src/embeds.js)
   * **Objectif :** Améliorer l'expérience joueur sur Discord en offrant des commandes slash permettant d'interroger directement ses récompenses en attente ou d'afficher le classement Top-Serveurs du mois en cours.
   * **Prompt Antigravity :**

@@ -10,7 +10,7 @@ import { loadConfig } from './config.js';
 import { TopServeursClient } from './topserveurs.js';
 import { ValheimClient } from './valheim.js';
 import { Store } from './store.js';
-import { processVotes, deliverQueue, runMonthlyIfDue, fakeVote, safeLoop } from './core.js';
+import { processVotes, deliverQueue, runMonthlyIfDue, fakeVote, safeLoop, resolveAlias } from './core.js';
 import * as embeds from './embeds.js';
 import { prizeLabel } from './rewards.js';
 import { Logger } from './logger.js';
@@ -161,15 +161,82 @@ async function upsertRewardsTable() {
   }
 }
 
+async function registerSlashCommands() {
+  try {
+    const commands = [
+      {
+        name: 'mes-recompenses',
+        description: 'Affiche tes récompenses de vote en attente de livraison',
+        options: [
+          {
+            name: 'pseudo',
+            description: 'Ton nom de personnage ou de vote si différent',
+            type: 3, // ApplicationCommandOptionType.String
+            required: false,
+          },
+        ],
+      },
+      {
+        name: 'roue-classement',
+        description: 'Affiche le classement des votes du mois en cours',
+      },
+    ];
+    await client.application.commands.set(commands);
+    log('Commandes Slash (/mes-recompenses, /roue-classement) enregistrées avec succès.');
+  } catch (err) {
+    log(`Impossible d'enregistrer les commandes Slash : ${err.message}`);
+  }
+}
+
 const stoppers = [];
 
 client.once('clientReady', async () => {
   log(`Connecté en tant que ${client.user.tag} — La Roue de la Fortune est en place ⚔️`);
   await upsertRewardsTable();
+  await registerSlashCommands();
   startAdminApi();
   stoppers.push(safeLoop(() => processVotes(ctx), config.topServeurs.pollIntervalSec ?? 60, 'processVotes', log));
   stoppers.push(safeLoop(() => deliverQueue(ctx), config.queue?.retryIntervalSec ?? 60, 'deliverQueue', log));
   stoppers.push(safeLoop(() => runMonthlyIfDue(ctx), 300, 'monthly', log));
+});
+
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+
+  if (interaction.commandName === 'mes-recompenses') {
+    try {
+      const input = interaction.options.getString('pseudo');
+      const voterName = input?.trim() || interaction.member?.displayName || interaction.user.username;
+      const target = resolveAlias(ctx, voterName);
+
+      const targetLower = target.toLowerCase();
+      const voterLower = voterName.toLowerCase();
+      const entries = store.queue.filter((e) => {
+        const pLower = e.playername.toLowerCase();
+        return pLower === targetLower || pLower === voterLower;
+      });
+
+      const embed = embeds.myPendingRewards(target, entries);
+      await interaction.reply({ embeds: [embed], ephemeral: true });
+    } catch (err) {
+      log(`Erreur interaction /mes-recompenses : ${err.message}`);
+      await interaction.reply({ content: 'Une erreur est survenue lors de la consultation de tes récompenses.', ephemeral: true }).catch(() => {});
+    }
+  } else if (interaction.commandName === 'roue-classement') {
+    try {
+      await interaction.deferReply();
+      const players = await ts.playersRanking('current');
+      const embed = embeds.currentRankingEmbed(players);
+      await interaction.editReply({ embeds: [embed] });
+    } catch (err) {
+      log(`Erreur interaction /roue-classement : ${err.message}`);
+      if (interaction.deferred) {
+        await interaction.editReply({ content: 'Impossible de récupérer le classement pour le moment.' }).catch(() => {});
+      } else {
+        await interaction.reply({ content: 'Impossible de récupérer le classement pour le moment.', ephemeral: true }).catch(() => {});
+      }
+    }
+  }
 });
 
 let isShuttingDown = false;

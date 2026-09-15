@@ -128,3 +128,45 @@ export function monthlyPodium(monthLabel, ranked) {
     footer: { text: `${FOOTER} · Merci à tous les votants !` },
   };
 }
+
+/** 📦 Récompenses en attente pour un joueur (commande slash /mes-recompenses). */
+export function myPendingRewards(playername, entries) {
+  if (!entries || !entries.length) {
+    return {
+      color: COLOR_GOLD,
+      title: `📦 Récompenses en attente — ${playername}`,
+      description: `Tu n'as aucune récompense en attente de livraison pour le moment.\nConnecte-toi en jeu ou vote sur Top-Serveurs pour faire tourner la roue !`,
+      footer: { text: FOOTER },
+    };
+  }
+
+  const lines = entries.map((e, idx) => {
+    const dateStr = e.queuedAt ? `<t:${Math.floor(e.queuedAt / 1000)}:R>` : 'récemment';
+    return `**${idx + 1}.** ${e.prizeText} *(en attente ${dateStr})*`;
+  });
+
+  return {
+    color: COLOR_GOLD,
+    title: `📦 Récompenses en attente — ${playername} (${entries.length})`,
+    description: `Ces récompenses te seront livrées dès que tu seras connecté au serveur :\n\n${lines.join('\n')}`,
+    footer: { text: `${FOOTER} · Reconnecte-toi en jeu pour les recevoir !` },
+  };
+}
+
+/** 🏆 Classement du mois en cours (commande slash /roue-classement). */
+export function currentRankingEmbed(players) {
+  const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+  const top10 = (players || []).slice(0, 10);
+  const lines = top10.map((p, i) => {
+    const name = p.playername ?? p.pseudo ?? p.username ?? p.name ?? 'Inconnu';
+    const votes = p.votes ?? p.count ?? 0;
+    return `${medals[i] ?? `${i + 1}.`} **${name}** — ${votes} vote(s)`;
+  });
+
+  return {
+    color: COLOR_GOLD,
+    title: '🏆 Classement des votants du mois en cours',
+    description: lines.join('\n') || 'Aucun vote enregistré pour l’instant ce mois-ci.',
+    footer: { text: `${FOOTER} · Le 1er du mois à 10h, le Top 5 remporte le Trésor du Jarl et la Bourse du Viking !` },
+  };
+}

@@ -535,6 +535,21 @@ await test('les embeds contiennent les infos clés de la maquette', () => {
     { playername: 'Mathi', votes: 42, prizeText: '🏆 Trésor du Jarl' },
   ]);
   assert.ok(podium.description.includes('🥇') && podium.description.includes('Mathi'));
+
+  const pendingEmpty = embeds.myPendingRewards('Mathi', []);
+  assert.ok(pendingEmpty.description.includes('aucune récompense'));
+
+  const pendingFilled = embeds.myPendingRewards('Mathi', [
+    { prizeText: '💰 20 × Piastres', queuedAt: Date.now() },
+  ]);
+  assert.ok(pendingFilled.description.includes('20 × Piastres'));
+
+  const rankingEmbed = embeds.currentRankingEmbed([
+    { playername: 'Mathi', votes: 15 },
+    { pseudo: 'Ketil', count: 12 },
+  ]);
+  assert.ok(rankingEmbed.description.includes('🥇 **Mathi** — 15 vote(s)'));
+  assert.ok(rankingEmbed.description.includes('🥈 **Ketil** — 12 vote(s)'));
 });
 
 // ---------- faux vote (test admin) ----------
