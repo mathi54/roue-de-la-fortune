@@ -66,11 +66,27 @@ export async function handleClaimedVote(ctx, name, vote) {
       !ctx.store.isKnownPlayer(target)) {
     ctx.log(`Vote de « ${name} » (extérieur au serveur) : annonce simple, pas de récompense.`);
     await ctx.notify.public('voteOnly', { playername: name });
+    ctx.store.addHistory?.({
+      voter: name,
+      target,
+      tierId: null,
+      prizeText: null,
+      outcome: 'voteOnly',
+      ...(vote?.test ? { test: true } : {}),
+    });
     return { outcome: 'voteOnly', target };
   }
 
   const prize = drawReward(ctx.rewards, ctx.rng);
   const outcome = await deliverOrQueue(ctx, target, prize, vote);
+  ctx.store.addHistory?.({
+    voter: name,
+    target,
+    tierId: prize.tier.id,
+    prizeText: prizeLabel(prize),
+    outcome,
+    ...(vote?.test ? { test: true } : {}),
+  });
   return { outcome, target, prize };
 }
 

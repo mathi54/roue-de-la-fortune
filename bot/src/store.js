@@ -12,10 +12,11 @@ export class Store {
   constructor(path, now = () => Date.now()) {
     this.path = path;
     this.now = now;
-    this.data = { seen: {}, queue: [], monthlyRun: null, pinnedMessageId: null, knownPlayers: {} };
+    this.data = { seen: {}, queue: [], monthlyRun: null, pinnedMessageId: null, knownPlayers: {}, history: [] };
     if (existsSync(path)) {
       try {
         this.data = { ...this.data, ...JSON.parse(readFileSync(path, 'utf8')) };
+        if (!Array.isArray(this.data.history)) this.data.history = [];
       } catch {
         // fichier corrompu : on repart proprement, l'anti-doublon reste garanti par claim-username
       }
@@ -109,4 +110,30 @@ export class Store {
   // --- message épinglé ---
   get pinnedMessageId() { return this.data.pinnedMessageId; }
   set pinnedMessageId(id) { this.data.pinnedMessageId = id; this.save(); }
+
+  // --- traçabilité des tirages (audit trail - Règle Studio n°3) ---
+  addHistory(entry, maxEntries = 50) {
+    if (!Array.isArray(this.data.history)) this.data.history = [];
+    const id = `${this.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    this.data.history.push({
+      id,
+      timestamp: this.now(),
+      date: new Date(this.now()).toISOString(),
+      ...entry,
+    });
+    if (this.data.history.length > maxEntries) {
+      this.data.history = this.data.history.slice(-maxEntries);
+    }
+    this.save();
+    return id;
+  }
+
+  getHistory(limit = 50) {
+    const arr = this.data.history || [];
+    return arr.slice(-Math.max(1, limit)).reverse();
+  }
+
+  get history() {
+    return this.data.history || [];
+  }
 }

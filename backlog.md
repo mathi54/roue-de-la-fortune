@@ -7,7 +7,7 @@ Ce document répertorie et structure de manière déterministe les tâches d'év
 ## 📌 Synthèse de l'état d'avancement
 
 - **Phase 1 : Fiabilité & Robustesse Critique** `[4/4]`
-- **Phase 2 : Optimisations C# ValheimRestApi & Sécurité** `[1/2]`
+- **Phase 2 : Optimisations C# ValheimRestApi & Sécurité** `[2/2]`
 - **Phase 3 : Ergonomie Joueur & Fonctionnalités Communautaires** `[0/3]`
 
 ---
@@ -70,7 +70,7 @@ Ce document répertorie et structure de manière déterministe les tâches d'év
     > 2. Assure-toi que les chaînes vides ou malformées renvoient `null` proprement sans lever d'exception non interceptée.
     > 3. Préserve la compatibilité avec l'environnement BepInEx Mono / .NET Standard sans ajouter de dépendance binaire externe."
 
-* [ ] **Tâche 2.2 : Traçabilité déterministe des tirages (Audit Trail)**
+* [x] **Tâche 2.2 : Traçabilité déterministe des tirages (Audit Trail)**
   * **Fichiers concernés :** [store.js](file:///d:/Work/roue-de-la-fortune/bot/src/store.js), [core.js](file:///d:/Work/roue-de-la-fortune/bot/src/core.js), [run-tests.js](file:///d:/Work/roue-de-la-fortune/bot/test/run-tests.js)
   * **Objectif :** Respecter la directive de déterminisme et d'auditabilité (Règle Studio n°3) en conservant dans `state.json` l'historique glissant des N derniers tirages pour permettre de résoudre les litiges de joueurs.
   * **Prompt Antigravity :**

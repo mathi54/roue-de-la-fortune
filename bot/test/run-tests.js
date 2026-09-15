@@ -234,6 +234,23 @@ await test('Store : takeDeliverable insensible à la casse, expireQueue', () => 
   assert.equal(s.queue.length, 0);
 });
 
+await test('Store : traçabilité des tirages (addHistory, getHistory, limitation de taille)', () => {
+  const path = join(tmp, 'history.json');
+  const s = new Store(path);
+  for (let i = 1; i <= 55; i++) {
+    s.addHistory({ voter: `Joueur${i}`, prizeText: `Lot ${i}`, outcome: 'delivered' }, 50);
+  }
+  assert.equal(s.history.length, 50);
+  const recent = s.getHistory(5);
+  assert.equal(recent.length, 5);
+  assert.equal(recent[0].voter, 'Joueur55'); // plus récent d'abord
+  assert.ok(recent[0].id && recent[0].date);
+
+  const reloaded = new Store(path);
+  assert.equal(reloaded.history.length, 50);
+  rmSync(path);
+});
+
 // ---------- core.js : processVotes ----------
 console.log('core.js — processVotes');
 await test('vote + joueur en ligne → claim, give, annonce "delivered"', async () => {
@@ -554,6 +571,10 @@ await test('fakeVote : alias résolu + inconnu → "voteOnly" ; pseudo vide → 
   const r2 = await fakeVote(ctx, 'Inconnu');
   assert.equal(r2.outcome, 'voteOnly');
   assert.equal(ctx.valheim.gives.length, 1);
+  assert.equal(ctx.store.history.length, 2);
+  assert.equal(ctx.store.history[0].voter, 'Ketil');
+  assert.equal(ctx.store.history[0].target, 'Andromaque');
+  assert.equal(ctx.store.history[1].outcome, 'voteOnly');
   await assert.rejects(() => fakeVote(ctx, '   '), /playername manquant/);
 });
 
