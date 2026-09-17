@@ -67,17 +67,24 @@ namespace ValheimRestApi.Commands
             }
             if (target == null) return Fail("Player not online: " + playername);
 
-            // === 2) Valider le prefab cote serveur (evite d'envoyer un RPC inutile) ===
+            // === 2) Livraison ===
+            // En mode "rpc" (defaut) : le serveur transmet l'ordre au client cible sans exiger
+            // d'avoir le prefab en memoire serveur. C'est le client (via EventController) qui
+            // ajoute l'item dans son inventaire a partir de son propre ObjectDB.
+            // Cela permet de distribuer des items custom/moddes (elixirs MeadEventXP/Drop, etc.)
+            // meme si le serveur dedie ne charge pas leurs prefabs dans ZNetScene.
+            if (mode == "rpc")
+                return GiveViaRpc(target, itemName.Trim(), amount, message);
+
+            // === 3) Mode "drop" uniquement : spawn physique au sol par le serveur ===
             var scene = ZNetScene.instance;
             if (scene == null) return Fail("ZNetScene not ready");
-            GameObject prefab = scene.GetPrefab(itemName.Trim());
+            GameObject prefab = scene.GetPrefab(itemName.Trim())
+                             ?? (ObjectDB.instance != null ? ObjectDB.instance.GetItemPrefab(itemName.Trim()) : null);
             if (prefab == null) return Fail("Unknown item prefab: " + itemName);
             var refDrop = prefab.GetComponent<ItemDrop>();
             if (refDrop == null) return Fail("Prefab has no ItemDrop: " + itemName);
 
-            // === 3) Livraison ===
-            if (mode == "rpc")
-                return GiveViaRpc(target, itemName.Trim(), amount, message);
             return GiveViaDrop(target, prefab, refDrop, itemName.Trim(), amount);
         }
 
