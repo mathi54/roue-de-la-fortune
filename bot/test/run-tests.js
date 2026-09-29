@@ -204,6 +204,9 @@ await test('ValheimClient : parse le /players objet + header X-Auth-Token', asyn
   assert.equal(await client.isOnline('MATHI'), true);
   await client.give('Mathi', 'Coins', 20);
   assert.ok(requests.every((r) => r.headers['X-Auth-Token'] === 'secret'));
+  // v1.1.2 : charset explicite, sinon le HttpListener Mono du mod décode le body
+  // avec l'encodage système et mutile les pseudos accentués (« Vimbé » → « VimbÃ© »).
+  assert.ok(requests.every((r) => r.headers['Content-Type'] === 'application/json; charset=utf-8'));
 });
 
 // ---------- store.js ----------
@@ -489,6 +492,22 @@ await test('v1.1.1 : give différé échoue → l\'entrée RESTE en file, alerte
   await deliverQueue(ctx); // 6e échec : pas de nouvelle alerte
   assert.equal(ctx.notify.calls.admin.length, 1);
   assert.equal(ctx.store.queue.length, 1); // rien n'est jamais perdu
+});
+
+await test('v1.1.2 : give refusé → le motif renvoyé par le mod remonte dans le log', async () => {
+  const { ValheimClient } = await import('../src/valheim.js');
+  const client = new ValheimClient({ baseUrl: 'http://127.0.0.1:8080' }, async (url) => {
+    if (String(url).endsWith('/players')) {
+      return { ok: true, json: async () => ({ success: true, count: 1, players: [{ name: 'Vimbé' }] }) };
+    }
+    return { ok: true, json: async () => ({ success: false, error: 'Player not online: VimbÃ©' }) };
+  });
+  const logs = [];
+  const ctx = makeCtx({ valheim: client, log: (m) => logs.push(m) });
+  ctx.store.enqueue({ playername: 'VIMBÉ', item: 'Coins', amount: 20, prizeText: 'x', tierId: 'commun' });
+  await deliverQueue(ctx);
+  assert.equal(ctx.store.queue.length, 1); // l'entrée reste en file
+  assert.ok(logs.some((l) => l.includes('ÉCHEC') && l.includes('Player not online: VimbÃ©')));
 });
 
 await test('v1.1.1 : ValheimRestApi en panne → log throttlé mentionnant la file en attente', async () => {
