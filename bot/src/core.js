@@ -237,6 +237,7 @@ export async function deliverQueue(ctx) {
           : `Roue de la Fortune : ${entry.prizeText} !`,
         deliveryMode);
     } catch (err) { reason = err.message; }
+    if (!ok && ctx.valheim.lastError) reason = `refusé par ValheimRestApi (${ctx.valheim.lastError})`;
 
     if (ok) {
       ctx.store.removeEntry(entry.id); // retiré SEULEMENT après give réussi
