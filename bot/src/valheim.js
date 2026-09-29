@@ -14,7 +14,10 @@ export class ValheimClient {
   }
 
   #headers() {
-    const h = { 'Content-Type': 'application/json' };
+    // v1.1.2 : charset explicite — sans lui, le HttpListener (Mono) du mod décode le
+    // body avec l'encodage par défaut du système, ce qui transforme « Vimbé » en
+    // « VimbÃ© » et fait échouer le lookup joueur côté serveur (Player not online).
+    const h = { 'Content-Type': 'application/json; charset=utf-8' };
     if (this.apiToken) h['X-Auth-Token'] = this.apiToken;
     return h;
   }
@@ -58,15 +61,23 @@ export class ValheimClient {
   }
 
   async #giveSingle(playername, item, amount, message = '', mode = 'rpc') {
+    this.lastError = null;
     const res = await this.fetch(`${this.baseUrl}/give`, {
       method: 'POST',
       headers: this.#headers(),
       body: JSON.stringify({ playername, item, amount, message, mode }),
       signal: AbortSignal.timeout(10000),
     });
-    if (!res.ok) return false;
+    if (!res.ok) {
+      this.lastError = `HTTP ${res.status}`;
+      return false;
+    }
     const data = await res.json().catch(() => null);
-    return data?.success === true;
+    if (data?.success === true) return true;
+    // v1.1.2 : remonte le message d'erreur du mod (ex. "Player not online: X")
+    // pour que le log du bot dise POURQUOI la livraison a été refusée.
+    this.lastError = data?.error ?? 'réponse invalide';
+    return false;
   }
 
   /** Livre toutes les lignes d'un lot (prize simple ou lot mensuel multi-items). */
