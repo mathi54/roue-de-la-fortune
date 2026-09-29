@@ -4,6 +4,34 @@ Ce document retrace l'historique complet des versions, améliorations, correctif
 
 ---
 
+## [v1.1.2] — 2026-09-29
+
+### 🐛 Correctif — pseudos accentués jamais livrés (« Vimbé »)
+
+**Symptôme** : les récompenses en file d'un joueur au pseudo accentué (Vimbé) échouaient en boucle
+(`Livraison différée ÉCHEC … refusé par ValheimRestApi`) alors que les autres joueurs étaient livrés normalement.
+
+**Cause** : le bot envoyait le body `/give` en UTF-8 avec `Content-Type: application/json` **sans charset**.
+Côté mod, le `HttpListener` (Mono) décode alors le body avec l'encodage par défaut du système :
+`Vimbé` (UTF-8) devient `VimbÃ©`, et le lookup du joueur connecté échoue (`Player not online`).
+Le `/players` du mod, lui, déclare `charset=utf-8` — d'où l'asymétrie : le bot lisait bien les accents,
+mais le mod relisait mal ce que le bot lui renvoyait.
+
+**Correctifs** (`src/valheim.js`, `src/core.js`) :
+- `Content-Type: application/json; charset=utf-8` sur toutes les requêtes vers ValheimRestApi.
+- Le motif d'échec renvoyé par le mod (ex. `Player not online: VimbÃ©`) est maintenant remonté
+  dans le log du bot (`ÉCHEC … refusé par ValheimRestApi (…)`), pour ne plus diagnostiquer à l'aveugle.
+
+Côté mod, `Mathi-RestApi` force désormais aussi la lecture du body en UTF-8 (ceinture et bretelles,
+actif au prochain redéploiement du DLL). Aucune récompense n'a été perdue : les entrées de Vimbé sont
+restées en file et partiront à sa prochaine connexion.
+
+### 🧪 Tests
+
+- 51 tests (2 nouveaux) : header `charset=utf-8` vérifié, et remontée du motif d'échec du mod dans le log.
+
+---
+
 ## [v1.1.1] — 2026-09-29
 
 Fiabilisation de la livraison différée, après diagnostic d'une file de ~65 récompenses accumulées du 15 au 29 septembre sans jamais être livrées — y compris pour des joueurs revenus en jeu (Benito, VIMBÉ, Blota Hounkas). Cause : la fenêtre de stabilité exigeait 2 cycles consécutifs en ligne avant toute livraison différée, condition presque jamais réunie en pratique (sessions courtes, `/players` parfois instable), et ce chemin de code ne loggait strictement rien.
