@@ -195,13 +195,22 @@ async function registerSlashCommands() {
 
 const stoppers = [];
 
+// v1.1.1 : suivi du cycle de livraison en cours, pour que l'arrêt gracieux
+// attende la fin des gives avant de quitter (un restart AMP en pleine livraison
+// ne doit interrompre aucun envoi en vol).
+let deliveryBusy = false;
+async function deliverTick() {
+  deliveryBusy = true;
+  try { await deliverQueue(ctx); } finally { deliveryBusy = false; }
+}
+
 client.once('clientReady', async () => {
   log(`Connecté en tant que ${client.user.tag} — La Roue de la Fortune est en place ⚔️`);
   await upsertRewardsTable();
   await registerSlashCommands();
   startAdminApi();
   stoppers.push(safeLoop(() => processVotes(ctx), config.topServeurs.pollIntervalSec ?? 60, 'processVotes', log));
-  stoppers.push(safeLoop(() => deliverQueue(ctx), config.queue?.retryIntervalSec ?? 60, 'deliverQueue', log));
+  stoppers.push(safeLoop(deliverTick, config.queue?.retryIntervalSec ?? 60, 'deliverQueue', log));
   stoppers.push(safeLoop(() => runMonthlyIfDue(ctx), 300, 'monthly', log));
 });
 
@@ -245,7 +254,7 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 let isShuttingDown = false;
-export function gracefulShutdown(signal = 'SIGTERM') {
+export async function gracefulShutdown(signal = 'SIGTERM') {
   if (isShuttingDown) return;
   isShuttingDown = true;
   log(`Arrêt gracieux suite au signal ${signal}...`);
@@ -253,6 +262,13 @@ export function gracefulShutdown(signal = 'SIGTERM') {
   for (const stop of stoppers) {
     try { stop(); } catch { /* ignore */ }
   }
+
+  // v1.1.1 : attend la fin du cycle de livraison en cours (8 s max)
+  const t0 = Date.now();
+  while (deliveryBusy && Date.now() - t0 < 8000) {
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  if (deliveryBusy) log('Arrêt : cycle de livraison encore en cours après 8 s — les entrées restent en file (aucune perte).');
 
   if (adminServer) {
     try { adminServer.close(); } catch { /* ignore */ }

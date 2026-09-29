@@ -18,10 +18,18 @@ export class Store {
         this.data = { ...this.data, ...JSON.parse(readFileSync(path, 'utf8')) };
         if (!Array.isArray(this.data.history)) this.data.history = [];
         if (!this.data.milestones || typeof this.data.milestones !== 'object') this.data.milestones = {};
+        // v1.1.1 : id unique par entrée de file (rétro-remplissage des entrées existantes)
+        for (const e of this.data.queue) {
+          if (!e.id) e.id = this.newQueueId();
+        }
       } catch {
         // fichier corrompu : on repart proprement, l'anti-doublon reste garanti par claim-username
       }
     }
+  }
+
+  newQueueId() {
+    return `q-${this.now()}-${Math.random().toString(36).slice(2, 8)}`;
   }
 
   save() {
@@ -48,8 +56,42 @@ export class Store {
 
   // --- file d'attente des récompenses ---
   enqueue(entry) {
-    this.data.queue.push({ ...entry, queuedAt: this.now() });
+    this.data.queue.push({ id: this.newQueueId(), ...entry, queuedAt: this.now() });
     this.save();
+  }
+
+  /**
+   * v1.1.1 — Lecture NON destructive des entrées livrables (le retrait ne se fait
+   * qu'après un give confirmé, via removeEntry). Compare le pseudo brut et le
+   * pseudo résolu par alias. Retourne [{ entry, deliverTo }].
+   */
+  peekDeliverable(onlineNames, resolveAliasFn = (n) => n) {
+    // clé insensible à la casse -> casse réelle du joueur en ligne (celle du serveur)
+    const online = new Map(onlineNames.map((n) => [n.toLowerCase().trim(), n]));
+    const out = [];
+    for (const e of this.data.queue) {
+      const raw = (e.playername || '').toLowerCase().trim();
+      const resolved = (resolveAliasFn(e.playername) || '').toLowerCase().trim();
+      const match = online.get(raw) ?? online.get(resolved);
+      if (match) out.push({ entry: e, deliverTo: match });
+    }
+    return out;
+  }
+
+  /** Retire une entrée par id — appelé UNIQUEMENT après un give réussi. */
+  removeEntry(id) {
+    const before = this.data.queue.length;
+    this.data.queue = this.data.queue.filter((e) => e.id !== id);
+    if (this.data.queue.length !== before) this.save();
+  }
+
+  /** Incrémente le compteur d'échecs d'une entrée et retourne sa valeur. */
+  bumpAttempts(id) {
+    const e = this.data.queue.find((x) => x.id === id);
+    if (!e) return 0;
+    e.attempts = (e.attempts ?? 0) + 1;
+    this.save();
+    return e.attempts;
   }
 
   /**

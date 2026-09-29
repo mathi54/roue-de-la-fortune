@@ -456,13 +456,10 @@ await test('joueur se connecte → livraison différée + annonce "deliveredLate
   assert.equal(ctx.notify.calls.public[0].kind, 'deliveredLate');
 });
 
-await test('fenêtre de stabilité : pas de livraison au 1er cycle (écran de chargement), livrée au 2e', async () => {
+await test('v1.1.1 : la file se livre dès le 1er cycle en ligne (le tampon PendingGives client couvre l\'écran de chargement)', async () => {
   const ctx = makeCtx({ valheim: fakeValheim({ online: ['Grudu'] }), _prevOnline: new Set() });
   ctx.store.enqueue({ playername: 'Grudu', item: 'Amber', amount: 3, prizeText: '🟠 3 × Ambre', tierId: 'commun' });
-  await deliverQueue(ctx); // 1er cycle : Grudu vient d'apparaître → PAS de give
-  assert.equal(ctx.valheim.gives.length, 0);
-  assert.equal(ctx.store.queue.length, 1);
-  await deliverQueue(ctx); // 2e cycle : Grudu vu deux fois → give
+  await deliverQueue(ctx); // 1er cycle : Grudu vient d'apparaître → give immédiat
   assert.equal(ctx.valheim.gives.length, 1);
   assert.equal(ctx.store.queue.length, 0);
 });
@@ -479,12 +476,30 @@ await test('fenêtre de stabilité : vote d\'un joueur fraîchement connecté �
   assert.equal(ctx.notify.calls.public[0].kind, 'queued');
 });
 
-await test('give différé échoue → remise en file, pas de perte', async () => {
+await test('v1.1.1 : give différé échoue → l\'entrée RESTE en file, alerte admin au 5e échec seulement', async () => {
   const ctx = makeCtx({ valheim: fakeValheim({ online: ['Ketil'], giveOk: false }) });
   ctx.store.enqueue({ playername: 'Ketil', item: 'Coins', amount: 20, prizeText: 'x', tierId: 'commun' });
-  await deliverQueue(ctx);
+  for (let i = 0; i < 4; i++) await deliverQueue(ctx);
   assert.equal(ctx.store.queue.length, 1);
+  assert.equal(ctx.store.queue[0].attempts, 4);
+  assert.equal(ctx.notify.calls.admin.length, 0); // pas encore d'alerte
+  await deliverQueue(ctx); // 5e échec → une seule alerte admin
+  assert.equal(ctx.notify.calls.admin.length, 1);
   assert.equal(ctx.notify.calls.admin[0].kind, 'deliveryFailed');
+  await deliverQueue(ctx); // 6e échec : pas de nouvelle alerte
+  assert.equal(ctx.notify.calls.admin.length, 1);
+  assert.equal(ctx.store.queue.length, 1); // rien n'est jamais perdu
+});
+
+await test('v1.1.1 : ValheimRestApi en panne → log throttlé mentionnant la file en attente', async () => {
+  const logs = [];
+  const ctx = makeCtx({
+    valheim: { onlinePlayers: async () => { throw new Error('fetch failed'); }, give: async () => true },
+    log: (m) => logs.push(m),
+  });
+  ctx.store.enqueue({ playername: 'Ketil', item: 'Coins', amount: 20, prizeText: 'x', tierId: 'commun' });
+  for (let i = 0; i < 4; i++) await deliverQueue(ctx);
+  assert.equal(logs.filter((l) => l.includes('injoignable')).length, 1); // throttlé
 });
 
 await test('deliverQueue : temporisation anti-rafale (sleep) et résolution d\'alias rétroactive', async () => {

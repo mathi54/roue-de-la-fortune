@@ -180,7 +180,19 @@ async function safeGive(ctx, name, prize) {
   }
 }
 
-/** Cycle de livraison différée : livre la file aux joueurs désormais en ligne, purge les expirées. */
+/**
+ * Cycle de livraison différée (v1.1.1) : livre la file aux joueurs en ligne, purge les expirées.
+ *
+ * Changements v1.1.1 (cause des 60+ récompenses accumulées en sept. 2026) :
+ *  - La file se livre dès la PREMIÈRE apparition en ligne (plus d'attente de 2 cycles) :
+ *    le tampon PendingGives d'EventController (>= 3.5.1, modpack en 3.6.1) couvre déjà
+ *    l'écran de chargement côté client, et l'attente faisait rater toutes les sessions
+ *    courtes. La fenêtre de stabilité est conservée UNIQUEMENT pour la livraison directe
+ *    au moment du vote (isStable).
+ *  - Retrait de la file UNIQUEMENT après give confirmé (plus de perte sur un restart).
+ *  - Chaque tentative est loggée (succès comme échec) ; alerte admin après N échecs.
+ *  - L'indisponibilité de ValheimRestApi est loggée (throttlée à 1 fois / 10 min).
+ */
 export async function deliverQueue(ctx) {
   const maxAgeDays = ctx.config.queue?.maxAgeDays ?? 30;
   for (const expired of ctx.store.expireQueue(maxAgeDays)) {
@@ -190,35 +202,45 @@ export async function deliverQueue(ctx) {
   let online;
   try {
     online = await ctx.valheim.onlinePlayers();
-  } catch {
+  } catch (err) {
+    if (ctx.store.queue.length > 0) {
+      const nowMs = ctx.now?.() ?? Date.now();
+      if (!ctx._lastOutageLog || nowMs - ctx._lastOutageLog > 10 * 60 * 1000) {
+        ctx._lastOutageLog = nowMs;
+        ctx.log(`deliverQueue : ValheimRestApi injoignable (${err.message}) — ${ctx.store.queue.length} récompense(s) en attente`);
+      }
+    }
     return; // API injoignable : on retentera au prochain cycle
   }
+  ctx._lastOutageLog = 0;
 
   ctx.store.learnPlayers(online); // apprend qui est joueur du serveur
 
-  // Fenêtre de stabilité : livrable = en ligne maintenant ET au cycle précédent.
-  const prev = ctx._prevOnline ?? new Set();
+  // Fenêtre de stabilité : ne sert plus qu'à la livraison directe (isStable).
   ctx._prevOnline = new Set(online.map((n) => n.toLowerCase()));
-  const stable = online.filter((n) => prev.has(n.toLowerCase()));
 
-  if (ctx.store.queue.length === 0 || stable.length === 0) return;
+  if (ctx.store.queue.length === 0 || online.length === 0) return;
 
   const resolveFn = (n) => resolveAlias(ctx, n);
-  const deliverable = ctx.store.takeDeliverable(stable, resolveFn);
+  const deliverable = ctx.store.peekDeliverable(online, resolveFn);
   const deliveryMode = ctx.config?.valheim?.deliveryMode ?? 'rpc';
   const sleep = ctx.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+  const alertAfter = ctx.config.queue?.alertAfterAttempts ?? 5;
 
-  for (const entry of deliverable) {
+  for (const { entry, deliverTo } of deliverable) {
     let ok = false;
+    let reason = 'refusé par ValheimRestApi';
     try {
-      ok = await ctx.valheim.give(entry.playername, entry.item, entry.amount,
+      ok = await ctx.valheim.give(deliverTo, entry.item, entry.amount,
         entry.kind === 'monthly'
           ? `Podium des votants : ${entry.prizeText} !`
           : `Roue de la Fortune : ${entry.prizeText} !`,
         deliveryMode);
-    } catch { /* ok reste false */ }
+    } catch (err) { reason = err.message; }
 
     if (ok) {
+      ctx.store.removeEntry(entry.id); // retiré SEULEMENT après give réussi
+      ctx.log(`Livraison différée OK : ${entry.amount} × ${entry.item} → ${deliverTo} (${entry.prizeText})`);
       const pseudoPrize = {
         tier: ctx.rewards.tiers.find((t) => t.id === entry.tierId) ?? ctx.rewards.tiers[0],
         reward: { label: entry.prizeText, item: entry.item },
@@ -226,10 +248,16 @@ export async function deliverQueue(ctx) {
       };
       // prizeText contient déjà quantité + emoji : on l'affiche tel quel
       pseudoPrize.reward.label = entry.prizeText;
-      await ctx.notify.public('deliveredLate', { playername: entry.playername, prize: pseudoPrize });
+      await ctx.notify.public('deliveredLate', { playername: deliverTo, prize: pseudoPrize });
     } else {
-      ctx.store.requeue(entry);
-      await ctx.notify.admin('deliveryFailed', { playername: entry.playername, detail: 'échec du give différé' });
+      const attempts = ctx.store.bumpAttempts(entry.id);
+      ctx.log(`Livraison différée ÉCHEC (tentative ${attempts}) : ${entry.amount} × ${entry.item} → ${deliverTo} — ${reason}`);
+      if (attempts === alertAfter) {
+        await ctx.notify.admin('deliveryFailed', {
+          playername: deliverTo,
+          detail: `${attempts} échecs pour « ${entry.prizeText} » — ${reason}`,
+        });
+      }
     }
 
     // Pacing anti-rafale entre deux envois d'objets pour éviter l'engorgement client

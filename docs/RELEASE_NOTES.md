@@ -4,6 +4,28 @@ Ce document retrace l'historique complet des versions, améliorations, correctif
 
 ---
 
+## [v1.1.1] — 2026-09-29
+
+Fiabilisation de la livraison différée, après diagnostic d'une file de ~65 récompenses accumulées du 15 au 29 septembre sans jamais être livrées — y compris pour des joueurs revenus en jeu (Benito, VIMBÉ, Blota Hounkas). Cause : la fenêtre de stabilité exigeait 2 cycles consécutifs en ligne avant toute livraison différée, condition presque jamais réunie en pratique (sessions courtes, `/players` parfois instable), et ce chemin de code ne loggait strictement rien.
+
+### 🚚 Livraison différée (core.js, store.js)
+- **Livraison dès le 1er cycle en ligne** : le tampon `PendingGives` d'EventController (>= 3.5.1, modpack en 3.6.1) couvre déjà l'écran de chargement côté client. La fenêtre de stabilité est conservée uniquement pour la livraison directe au moment du vote.
+- **Retrait de la file uniquement après give confirmé** (`peekDeliverable` non destructif + `removeEntry` par id) : un redémarrage AMP en pleine livraison ne peut plus perdre de récompense.
+- **Compteur d'échecs par entrée** (`attempts`) + alerte dans le salon admin au 5e échec (une seule fois), configurable via `queue.alertAfterAttempts`.
+- `state.json` : id unique rétro-rempli sur les entrées existantes au chargement — la file accumulée se livre d'elle-même après déploiement, à la connexion de chacun.
+
+### 🔍 Traçabilité (core.js)
+- Chaque tentative différée est loggée : `Livraison différée OK/ÉCHEC : N × Item → Joueur (raison)`.
+- Indisponibilité de ValheimRestApi loggée avec le nombre de récompenses en attente (throttlée à 1 fois / 10 min).
+
+### 🧹 Arrêt propre (index.js)
+- L'arrêt gracieux attend la fin du cycle de livraison en cours (8 s max) avant de quitter.
+
+### 🧪 Tests
+- Suite portée à **50 tests** : livraison au 1er cycle, non-perte sur échec répété, alerte au 5e échec uniquement, throttle du log d'indisponibilité.
+
+---
+
 ## [v1.1.0] — 2026-09-15
 
 Cette version majeure apporte une fiabilisation complète du cycle de vie du bot (podium, boucles, arrêt propre), un module de diagnostic embarqué avec logs persistants, le blindage du mod serveur C#, ainsi que de nouvelles fonctionnalités communautaires majeures (commandes Slash Discord et paliers collectifs).
