@@ -4,6 +4,30 @@ Ce document retrace l'historique complet des versions, améliorations, correctif
 
 ---
 
+## [v1.1.3] — 2026-09-30
+
+### 🚫 Blacklist de votants (`config.blacklist`)
+
+Nouvelle liste de pseudos ignorés dans `config.json` (ex. `"blacklist": ["Ketil", "Ketill"]`),
+insensible à la casse. Un pseudo blacklisté :
+- ne déclenche **ni claim ni annonce Discord** quand il vote (trace dans roue.log uniquement) ;
+- est **retiré du classement avant le top 5** du podium mensuel — le joueur suivant récupère
+  son rang ;
+- n'apparaît plus dans l'embed `/roue-classement`.
+
+Ses votes comptent toujours pour le serveur sur Top-Serveurs (total mensuel inclus).
+
+### 🗳️ Podium mensuel : total des votes annoncé
+
+L'embed du podium annonce d'abord le nombre total de votes du mois (tous votants confondus),
+puis le palmarès.
+
+### 🧪 Tests
+
+- 53 tests (2 nouveaux) : vote blacklisté ignoré ; podium filtré + total des votes correct.
+
+---
+
 ## [v1.1.2] — 2026-09-29
 
 ### 🐛 Correctif — pseudos accentués jamais livrés (« Vimbé »)
