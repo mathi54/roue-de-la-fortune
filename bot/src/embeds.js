@@ -117,14 +117,18 @@ export function rewardsTable(rewards) {
 }
 
 /** 🏆 Podium mensuel des votants. */
-export function monthlyPodium(monthLabel, ranked) {
+export function monthlyPodium(monthLabel, ranked, totalVotes = null) {
   const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
   const lines = ranked.map((r, i) =>
     `${medals[i] ?? `${i + 1}.`} **${r.playername}** — ${r.votes} votes → ${r.prizeText}`);
+  // v1.1.3 : on annonce d'abord le nombre total de votes du mois, puis le palmarès.
+  const header = totalVotes != null
+    ? `🗳️ Le serveur a reçu **${totalVotes} votes** en ${monthLabel} — merci à tous !\n\n`
+    : '';
   return {
     color: COLOR_GOLD,
     title: `🏆 Meilleurs votants — ${monthLabel}`,
-    description: lines.join('\n') || 'Aucun vote ce mois-ci.',
+    description: header + (lines.join('\n') || 'Aucun vote ce mois-ci.'),
     footer: { text: `${FOOTER} · Merci à tous les votants !` },
   };
 }
