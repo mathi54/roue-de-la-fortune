@@ -22,6 +22,13 @@ export async function processVotes(ctx) {
     const key = voteKey(vote);
     if (ctx.store.hasSeen(key)) continue;
 
+    // v1.1.3 : pseudo blacklisté -> on marque vu et on passe, sans claim ni annonce.
+    if (isBlacklisted(ctx.config, name)) {
+      ctx.store.markSeen(key);
+      ctx.log(`Vote de « ${name} » ignoré (blacklist).`);
+      continue;
+    }
+
     let claimed;
     try {
       claimed = await ctx.ts.claimUsername(name);
@@ -112,6 +119,16 @@ export async function fakeVote(ctx, playername) {
   ctx.log(`[TEST] Résultat : ${result.outcome} pour « ${result.target} »` +
     (result.prize ? ` — ${prizeLabel(result.prize)}` : ''));
   return result;
+}
+
+/**
+ * v1.1.3 : pseudos de vote ignorés (config.blacklist, insensible à la casse).
+ * Un blacklisté ne déclenche NI claim NI annonce Discord (trace en console
+ * uniquement) et est retiré du classement avant le top 5 du podium mensuel
+ * — son vote compte toujours pour le serveur sur Top-Serveurs.
+ */
+export function isBlacklisted(config, name) {
+  return (config.blacklist ?? []).some((b) => b.toLowerCase() === String(name).toLowerCase());
 }
 
 /**
@@ -293,6 +310,13 @@ export async function runMonthlyIfDue(ctx, nowDate = new Date()) {
 
   ctx.store.markMonthlyRun(monthKey); // marqué AVANT distribution pour ne jamais doubler les lots
 
+  // v1.1.3 : le total des votes du mois (tous votants confondus) est annoncé en tête
+  // du podium, puis le classement est filtré : un pseudo blacklisté ne prend plus de
+  // rang dans le top 5 — le joueur suivant récupère sa place.
+  const totalVotes = (players || []).reduce((sum, p) => sum + (p.votes ?? p.count ?? 0), 0);
+  players = (players || []).filter((p) =>
+    !isBlacklisted(ctx.config, p.playername ?? p.pseudo ?? p.username ?? p.name ?? ''));
+
   const ranked = [];
   players.slice(0, 5).forEach((p, i) => {
     const rank = i + 1;
@@ -321,7 +345,7 @@ export async function runMonthlyIfDue(ctx, nowDate = new Date()) {
   }
 
   const monthLabel = previousMonthLabel(nowDate);
-  await ctx.notify.podium(monthLabel, ranked);
+  await ctx.notify.podium(monthLabel, ranked, totalVotes);
   await deliverQueue(ctx); // tente une livraison immédiate pour ceux qui sont en ligne
 }
 
