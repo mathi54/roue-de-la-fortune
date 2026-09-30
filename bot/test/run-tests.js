@@ -32,7 +32,7 @@ function fakeNotify() {
     calls,
     async public(kind, payload) { calls.public.push({ kind, ...payload }); },
     async admin(kind, payload) { calls.admin.push({ kind, ...payload }); },
-    async podium(monthLabel, ranked) { calls.podium.push({ monthLabel, ranked }); },
+    async podium(monthLabel, ranked, totalVotes) { calls.podium.push({ monthLabel, ranked, totalVotes }); },
   };
 }
 
@@ -597,6 +597,38 @@ await test('déjà distribué ce mois-ci → aucune double distribution', async 
   await runMonthlyIfDue(ctx, new Date(2026, 8, 15, 12, 0)); // même 14 jours plus tard
   assert.equal(ctx.store.queue.length, queued);
   assert.equal(ctx.notify.calls.podium.length, 1);
+});
+
+// ---------- core.js : blacklist (v1.1.3) ----------
+console.log('core.js — blacklist');
+await test('v1.1.3 : vote d\'un pseudo blacklisté → ignoré (pas de claim, pas d\'annonce, vu une seule fois)', async () => {
+  const ctx = makeCtx({
+    ts: fakeTs({ votes: [{ playername: 'Ketil', datetime: 'bl1' }], claims: { Ketil: 1 } }),
+  });
+  ctx.config.blacklist = ['ketil'];
+  await processVotes(ctx);
+  await processVotes(ctx); // second cycle : déjà marqué vu, pas de re-log
+  assert.equal(ctx.ts.claimCalls.length, 0);
+  assert.equal(ctx.notify.calls.public.length, 0);
+  assert.equal(ctx.notify.calls.admin.length, 0);
+  assert.equal(ctx.store.queue.length, 0);
+});
+
+await test('v1.1.3 : podium mensuel — blacklisté retiré du top 5, total des votes annoncé', async () => {
+  const rankingAvecIntrus = [{ playername: 'Intrus', votes: 60 }, ...ranking];
+  const ctx = makeCtx({ ts: fakeTs({ ranking: rankingAvecIntrus }) });
+  ctx.config.blacklist = ['intrus'];
+  await runMonthlyIfDue(ctx, new Date(2026, 9, 1, 10, 5)); // 1er oct. 2026 10:05
+  assert.equal(ctx.notify.calls.podium.length, 1);
+  const call = ctx.notify.calls.podium[0];
+  // total = TOUS les votes, y compris le blacklisté (60+42+38+30+22+19+12)
+  assert.equal(call.totalVotes, 223);
+  const names = call.ranked.map((r) => r.playername);
+  // l'intrus est retiré et Talex (6e brut) récupère le rang 5 ; Zork reste 6e
+  assert.deepEqual(names, ['Mathi', 'Ketil', 'Freyja', 'Thorvald', 'Talex']);
+  const embed = embeds.monthlyPodium('octobre 2026', call.ranked, call.totalVotes);
+  assert.ok(embed.description.startsWith('🗳️'));
+  assert.ok(embed.description.includes('223 votes'));
 });
 
 // ---------- embeds.js ----------
