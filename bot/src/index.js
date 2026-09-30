@@ -10,7 +10,7 @@ import { loadConfig } from './config.js';
 import { TopServeursClient } from './topserveurs.js';
 import { ValheimClient } from './valheim.js';
 import { Store } from './store.js';
-import { processVotes, deliverQueue, runMonthlyIfDue, fakeVote, safeLoop, resolveAlias } from './core.js';
+import { processVotes, deliverQueue, runMonthlyIfDue, fakeVote, safeLoop, resolveAlias, isBlacklisted } from './core.js';
 import * as embeds from './embeds.js';
 import { prizeLabel } from './rewards.js';
 import { Logger } from './logger.js';
@@ -80,9 +80,9 @@ const notify = {
     }[kind]();
     await send(config.discord.channels.admin, embed);
   },
-  async podium(monthLabel, ranked) {
+  async podium(monthLabel, ranked, totalVotes) {
     const channelId = config.discord.channels.classement ?? config.discord.channels.public;
-    await send(channelId, embeds.monthlyPodium(monthLabel, ranked));
+    await send(channelId, embeds.monthlyPodium(monthLabel, ranked, totalVotes));
   },
 };
 
@@ -240,7 +240,10 @@ client.on('interactionCreate', async (interaction) => {
     try {
       await interaction.deferReply();
       const players = await ts.playersRanking('current');
-      const embed = embeds.currentRankingEmbed(players);
+      // v1.1.3 : les pseudos blacklistés n'apparaissent pas dans le classement affiché.
+      const visible = players.filter((p) =>
+        !isBlacklisted(config, p.playername ?? p.pseudo ?? p.username ?? p.name ?? ''));
+      const embed = embeds.currentRankingEmbed(visible);
       await interaction.editReply({ embeds: [embed] });
     } catch (err) {
       log(`Erreur interaction /roue-classement : ${err.message}`);
